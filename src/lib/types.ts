@@ -1,4 +1,4 @@
-export type BookStatus = '책장속' | '책상위' | '가방안' | '기록중' | '완독완료';
+export type BookStatus = '책장속' | '책상위' | '가방안' | '완독완료';
 
 export interface Book {
   id: string;

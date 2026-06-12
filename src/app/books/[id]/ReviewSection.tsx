@@ -28,9 +28,11 @@ export function ReviewSection({
   const [rating, setRating] = useState(initialRating ?? 0);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const generateReview = async () => {
     setGenerating(true);
+    setError('');
     try {
       const res = await fetch('/api/generate-review', {
         method: 'POST',
@@ -38,9 +40,13 @@ export function ReviewSection({
         body: JSON.stringify({ bookId, bookTitle, author, category, notes }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? '독후감 생성 중 오류가 발생했습니다.');
+        return;
+      }
       if (data.review) setReview(data.review);
-    } catch (err) {
-      alert('독후감 생성 중 오류가 발생했습니다.');
+    } catch {
+      setError('독후감 생성 중 오류가 발생했습니다.');
     } finally {
       setGenerating(false);
     }
@@ -85,6 +91,10 @@ export function ReviewSection({
         <p className="mb-3 text-center text-xs text-gray-400">
           메모가 있어야 AI 독후감을 생성할 수 있습니다.
         </p>
+      )}
+
+      {error && (
+        <p className="mb-3 text-center text-xs text-red-500">{error}</p>
       )}
 
       <textarea

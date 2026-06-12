@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { BookStatus, Note } from '@/lib/types';
-import { StatusBadge } from '@/components/StatusBadge';
 import { NoteForm } from './NoteForm';
 import { NoteItem } from './NoteItem';
 import { ReviewSection } from './ReviewSection';
@@ -29,10 +28,8 @@ export default async function BookDetailPage({ params }: Props) {
 
   if (!book) notFound();
 
-  const isReading =
-    book.status === '책상위' || book.status === '가방안';
-  const isFinished =
-    book.status === '기록중' || book.status === '완독완료';
+  const isReading = book.status === '책상위' || book.status === '가방안';
+  const isFinished = book.status === '완독완료';
 
   return (
     <div>
@@ -47,7 +44,7 @@ export default async function BookDetailPage({ params }: Props) {
       </div>
 
       {/* Book header */}
-      <div className="mb-6 flex gap-5">
+      <div className="mb-6 flex gap-4">
         <div className="flex-shrink-0">
           {book.cover_image ? (
             <Image
@@ -55,27 +52,24 @@ export default async function BookDetailPage({ params }: Props) {
               alt={book.title}
               width={80}
               height={112}
-              className="h-28 w-20 rounded-lg object-cover shadow-md"
+              className="h-28 w-20 rounded-xl object-cover shadow-md"
             />
           ) : (
-            <div className="flex h-28 w-20 items-center justify-center rounded-lg bg-gray-100">
+            <div className="flex h-28 w-20 items-center justify-center rounded-xl bg-gray-100">
               <BookOpen className="h-8 w-8 text-gray-300" />
             </div>
           )}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="mb-1">
-            <StatusBadge status={book.status as BookStatus} />
-          </div>
-          <h1 className="text-xl font-bold text-gray-900 leading-tight">
+        <div className="min-w-0 flex-1 pt-1">
+          <h1 className="text-lg font-bold leading-tight text-gray-900">
             {book.title}
           </h1>
           <p className="mt-1 text-sm text-gray-500">{book.author}</p>
           {book.category && (
             <p className="mt-0.5 text-xs text-gray-400">{book.category}</p>
           )}
-          {book.rating && (
-            <p className="mt-1 text-yellow-400">
+          {book.rating != null && (
+            <p className="mt-1.5 text-sm text-yellow-400">
               {'★'.repeat(book.rating)}
               {'☆'.repeat(5 - book.rating)}
             </p>
@@ -83,35 +77,17 @@ export default async function BookDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Status changer */}
-      <div className="mb-6 rounded-xl bg-white p-4 shadow-sm">
+      {/* Progress stepper */}
+      <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
         <StatusChanger
           bookId={book.id}
           currentStatus={book.status as BookStatus}
         />
       </div>
 
-      {/* Notes section */}
-      {(isReading || isFinished) && (
-        <div className="mb-6 rounded-xl bg-white p-4 shadow-sm">
-          <h2 className="mb-3 font-semibold text-gray-900">
-            메모{' '}
-            <span className="text-sm font-normal text-gray-400">
-              ({notes?.length ?? 0}개)
-            </span>
-          </h2>
-          <div className="space-y-2">
-            {notes?.map((note) => (
-              <NoteItem key={note.id} note={note as Note} />
-            ))}
-          </div>
-          <NoteForm bookId={book.id} />
-        </div>
-      )}
-
-      {/* Review section */}
+      {/* 완독 완료: 독후감 섹션을 최상단 메인 액션으로 */}
       {isFinished && (
-        <div className="rounded-xl bg-white p-4 shadow-sm">
+        <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
           <ReviewSection
             bookId={book.id}
             bookTitle={book.title}
@@ -121,6 +97,24 @@ export default async function BookDetailPage({ params }: Props) {
             initialReview={book.review}
             initialRating={book.rating}
           />
+        </div>
+      )}
+
+      {/* 메모 섹션 (읽는 중 or 완독) */}
+      {(isReading || isFinished) && (
+        <div className="rounded-2xl bg-white p-5 shadow-sm">
+          <h2 className="mb-3 font-semibold text-gray-900">
+            메모{' '}
+            <span className="text-sm font-normal text-gray-400">
+              {notes?.length ?? 0}개
+            </span>
+          </h2>
+          <div className="space-y-2">
+            {notes?.map((note) => (
+              <NoteItem key={note.id} note={note as Note} />
+            ))}
+          </div>
+          <NoteForm bookId={book.id} />
         </div>
       )}
     </div>

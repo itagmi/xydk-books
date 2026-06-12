@@ -26,7 +26,7 @@ export async function updateBookStatus(bookId: string, status: BookStatus) {
   if (status === '책상위' || status === '가방안') {
     updates.started_at = new Date().toISOString().split('T')[0];
   }
-  if (status === '완독완료' || status === '기록중') {
+  if (status === '완독완료') {
     updates.finished_at = new Date().toISOString().split('T')[0];
   }
   const { error } = await supabase

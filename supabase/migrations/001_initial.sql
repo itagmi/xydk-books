@@ -5,7 +5,7 @@ create table if not exists books (
   author text not null,
   category text not null default '',
   status text not null default '책장속'
-    check (status in ('책장속', '책상위', '가방안', '기록중', '완독완료')),
+    check (status in ('책장속', '책상위', '가방안', '완독완료')),
   cover_image text,
   rating smallint check (rating between 1 and 5),
   started_at date,
