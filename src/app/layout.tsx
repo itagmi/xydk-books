@@ -28,7 +28,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko" className={geist.variable}>
-      <body className="min-h-screen bg-gray-50 font-sans antialiased">
+      <body className="min-h-screen bg-gray-50 font-sans antialiased" suppressHydrationWarning>
         <div className="mx-auto max-w-2xl px-4 py-6">{children}</div>
       </body>
     </html>

@@ -3,10 +3,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { BookStatus, Note } from '@/lib/types';
-import { NoteForm } from './NoteForm';
-import { NoteItem } from './NoteItem';
+import { NotesSection } from './NotesSection';
 import { ReviewSection } from './ReviewSection';
-import { StatusChanger } from './StatusChanger';
+import { BookStatusControl } from './BookStatusControl';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 
 interface Props {
@@ -68,6 +67,10 @@ export default async function BookDetailPage({ params }: Props) {
           {book.category && (
             <p className="mt-0.5 text-xs text-gray-400">{book.category}</p>
           )}
+          <BookStatusControl
+            bookId={book.id}
+            initialStatus={book.status as BookStatus}
+          />
           {book.rating != null && (
             <p className="mt-1.5 text-sm text-yellow-400">
               {'★'.repeat(book.rating)}
@@ -77,17 +80,25 @@ export default async function BookDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Progress stepper */}
-      <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
-        <StatusChanger
+      {isReading && (
+        <NotesSection
           bookId={book.id}
-          currentStatus={book.status as BookStatus}
+          notes={(notes ?? []) as Note[]}
+          variant="inline"
         />
-      </div>
+      )}
 
-      {/* 완독 완료: 독후감 섹션을 최상단 메인 액션으로 */}
       {isFinished && (
-        <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
+        <NotesSection
+          bookId={book.id}
+          notes={(notes ?? []) as Note[]}
+          variant="modal"
+        />
+      )}
+
+      {/* 완독: 독후감은 메모 아래 */}
+      {isFinished && (
+        <div className="rounded-2xl bg-white p-5 shadow-sm">
           <ReviewSection
             bookId={book.id}
             bookTitle={book.title}
@@ -97,24 +108,6 @@ export default async function BookDetailPage({ params }: Props) {
             initialReview={book.review}
             initialRating={book.rating}
           />
-        </div>
-      )}
-
-      {/* 메모 섹션 (읽는 중 or 완독) */}
-      {(isReading || isFinished) && (
-        <div className="rounded-2xl bg-white p-5 shadow-sm">
-          <h2 className="mb-3 font-semibold text-gray-900">
-            메모{' '}
-            <span className="text-sm font-normal text-gray-400">
-              {notes?.length ?? 0}개
-            </span>
-          </h2>
-          <div className="space-y-2">
-            {notes?.map((note) => (
-              <NoteItem key={note.id} note={note as Note} />
-            ))}
-          </div>
-          <NoteForm bookId={book.id} />
         </div>
       )}
     </div>

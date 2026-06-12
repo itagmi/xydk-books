@@ -38,7 +38,7 @@ export function Modal({ open, onClose, title, children }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="relative z-10 w-full max-w-lg rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl sm:mx-4"
+        className="relative z-10 w-full max-w-lg overflow-visible rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl sm:mx-4"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 id="modal-title" className="font-semibold text-gray-900">

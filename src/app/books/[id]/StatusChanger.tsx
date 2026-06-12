@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { updateBookStatus } from '@/lib/actions';
 import { BookStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -9,6 +10,7 @@ import { Check } from 'lucide-react';
 interface Props {
   bookId: string;
   currentStatus: BookStatus;
+  onChange?: (status: BookStatus) => void;
 }
 
 type Step = 0 | 1 | 2;
@@ -21,9 +23,14 @@ function statusToStep(status: BookStatus): Step {
 
 const STEP_LABELS = ['책장 속', '읽는 중', '완독 완료'];
 
-export function StatusChanger({ bookId, currentStatus }: Props) {
+export function StatusChanger({ bookId, currentStatus, onChange }: Props) {
+  const router = useRouter();
   const [status, setStatus] = useState(currentStatus);
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    setStatus(currentStatus);
+  }, [currentStatus]);
 
   const step = statusToStep(status);
 
@@ -33,6 +40,8 @@ export function StatusChanger({ bookId, currentStatus }: Props) {
     try {
       await updateBookStatus(bookId, next);
       setStatus(next);
+      onChange?.(next);
+      router.refresh();
     } finally {
       setPending(false);
     }

@@ -1,13 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { createBook, updateBook } from '@/lib/actions';
 import { Book, BookStatus } from '@/lib/types';
 import { ALL_STATUSES, STATUS_LABELS } from '@/lib/utils';
+import { BookOpen, Loader2 } from 'lucide-react';
 
 interface Props {
   book?: Pick<Book, 'id' | 'title' | 'author' | 'category' | 'status' | 'cover_image'>;
   onDone: () => void;
+}
+
+interface BookSearchHit {
+  title: string;
+  author: string;
+  category: string;
+  cover_image: string | null;
 }
 
 export function BookForm({ book, onDone }: Props) {
@@ -20,10 +29,77 @@ export function BookForm({ book, onDone }: Props) {
   });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [searchResults, setSearchResults] = useState<BookSearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const skipNextSearch = useRef(Boolean(book));
+  const titleFieldRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (searchResults.length === 0) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (!titleFieldRef.current?.contains(e.target as Node)) {
+        setSearchResults([]);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [searchResults.length]);
+
+  useEffect(() => {
+    const title = form.title.trim();
+    if (title.length < 2) return;
+
+    if (skipNextSearch.current) {
+      skipNextSearch.current = false;
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      setSearchError('');
+      try {
+        const res = await fetch(`/api/search-books?q=${encodeURIComponent(title)}`);
+        const data = await res.json();
+        if (!res.ok) {
+          setSearchResults([]);
+          setSearchError(data.error ?? '책 검색에 실패했습니다.');
+          return;
+        }
+        setSearchResults(data.results ?? []);
+      } catch {
+        setSearchResults([]);
+        setSearchError('책 검색에 실패했습니다.');
+      } finally {
+        setSearching(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [form.title]);
+
+  const applySearchHit = (hit: BookSearchHit) => {
+    skipNextSearch.current = true;
+    setSearchResults([]);
+    setSearchError('');
+    setForm((prev) => ({
+      ...prev,
+      title: hit.title,
+      author: hit.author || prev.author,
+      cover_image: hit.cover_image ?? prev.cover_image,
+    }));
+  };
 
   const set = (key: keyof typeof form) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
+  ) => {
+    const value = e.target.value;
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (key === 'title' && value.trim().length < 2) {
+      setSearchResults([]);
+      setSearchError('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,19 +133,81 @@ export function BookForm({ book, onDone }: Props) {
   const inputCls =
     'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300';
 
+  const showDropdown = searchResults.length > 0;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <div>
+      <div className="flex justify-center pb-1">
+        {form.cover_image ? (
+          <Image
+            src={form.cover_image}
+            alt={form.title || '표지'}
+            width={120}
+            height={168}
+            className="h-36 w-24 rounded-lg object-cover shadow-md"
+            unoptimized
+          />
+        ) : (
+          <div className="flex h-36 w-24 items-center justify-center rounded-lg bg-gray-100">
+            <BookOpen className="h-8 w-8 text-gray-300" />
+          </div>
+        )}
+      </div>
+
+      <div className="relative z-20">
         <label className="mb-1 block text-xs font-medium text-gray-600">
           제목 *
         </label>
-        <input
-          className={inputCls}
-          value={form.title}
-          onChange={set('title')}
-          placeholder="책 제목"
-        />
+        <div ref={titleFieldRef} className="relative">
+          <input
+            className={inputCls}
+            value={form.title}
+            onChange={set('title')}
+            placeholder="책 제목"
+          />
+          {searching && (
+            <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-gray-300" />
+          )}
+          {showDropdown && (
+            <ul className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+              {searchResults.map((hit) => (
+                <li key={`${hit.title}-${hit.author}`}>
+                  <button
+                    type="button"
+                    onClick={() => applySearchHit(hit)}
+                    className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 transition-colors"
+                  >
+                    {hit.cover_image ? (
+                      <Image
+                        src={hit.cover_image}
+                        alt=""
+                        width={32}
+                        height={44}
+                        className="h-11 w-8 shrink-0 rounded object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="h-11 w-8 shrink-0 rounded bg-gray-200" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-gray-900">
+                        {hit.title}
+                      </p>
+                      {hit.author && (
+                        <p className="truncate text-xs text-gray-500">{hit.author}</p>
+                      )}
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {searchError && (
+          <p className="mt-1 text-xs text-red-500">{searchError}</p>
+        )}
       </div>
+
       <div>
         <label className="mb-1 block text-xs font-medium text-gray-600">
           저자 *
@@ -83,7 +221,7 @@ export function BookForm({ book, onDone }: Props) {
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-gray-600">
-          카테고리
+          장르
         </label>
         <input
           className={inputCls}
@@ -107,18 +245,6 @@ export function BookForm({ book, onDone }: Props) {
             </option>
           ))}
         </select>
-      </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-gray-600">
-          표지 이미지 URL
-        </label>
-        <input
-          className={inputCls}
-          value={form.cover_image}
-          onChange={set('cover_image')}
-          placeholder="https://..."
-          type="url"
-        />
       </div>
 
       {error && <p className="text-xs text-red-500">{error}</p>}

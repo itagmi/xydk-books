@@ -1,17 +1,20 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { deleteNote } from '@/lib/actions';
 import { Note } from '@/lib/types';
 import { Trash2 } from 'lucide-react';
 
 export function NoteItem({ note }: { note: Note }) {
+  const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
     if (!confirm('이 메모를 삭제할까요?')) return;
     setDeleting(true);
     await deleteNote(note.id, note.book_id);
+    router.refresh();
   };
 
   return (

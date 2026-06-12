@@ -56,7 +56,9 @@ export async function createBook(data: {
   cover_image?: string;
 }) {
   const supabase = await createClient();
-  const { error } = await supabase.from('books').insert(data);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('로그인이 필요합니다.');
+  const { error } = await supabase.from('books').insert({ ...data, user_id: user.id });
   if (error) throw new Error(error.message);
   revalidatePath('/');
   revalidatePath('/admin');

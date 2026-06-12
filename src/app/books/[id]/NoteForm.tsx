@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { addNote } from '@/lib/actions';
 import { StickyNote } from 'lucide-react';
 
 export function NoteForm({ bookId }: { bookId: string }) {
+  const router = useRouter();
   const [page, setPage] = useState('');
   const [content, setContent] = useState('');
   const [pending, setPending] = useState(false);
@@ -17,6 +19,7 @@ export function NoteForm({ bookId }: { bookId: string }) {
       await addNote(bookId, Number(page) || 0, content.trim());
       setPage('');
       setContent('');
+      router.refresh();
     } finally {
       setPending(false);
     }

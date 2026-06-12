@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { BookOpen, Plus, ChevronRight } from 'lucide-react';
+import { BookOpen, Plus, ChevronRight, MoreHorizontal, LogOut } from 'lucide-react';
+import { deleteBook } from '@/lib/actions';
+import { createClient } from '@/lib/supabase/client';
 import { Book, BookStatus } from '@/lib/types';
-import { STATUS_LABELS } from '@/lib/utils';
 import { StatusBadge } from '@/components/StatusBadge';
 import { BookForm } from '@/components/BookForm';
 import { Modal } from '@/components/Modal';
@@ -17,7 +18,6 @@ type BookListItem = Pick<
 
 interface Props {
   books: BookListItem[];
-  canManage: boolean;
   error: boolean;
 }
 
@@ -39,10 +39,74 @@ function CoverPlaceholder({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   );
 }
 
-function ReadingCard({ book }: { book: BookListItem }) {
+function CardMenu({
+  onDelete,
+  disabled,
+}: {
+  onDelete: () => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
   return (
-    <Link href={`/books/${book.id}`}>
-      <div className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+    <div ref={ref} className="absolute right-2 top-2 z-10">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen((prev) => !prev);
+        }}
+        disabled={disabled}
+        className="rounded-lg p-1.5 text-gray-300 hover:bg-gray-100 hover:text-gray-500 disabled:opacity-50 transition-colors"
+        aria-label="더보기"
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 min-w-[88px] overflow-hidden rounded-lg border border-gray-100 bg-white py-1 shadow-lg">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpen(false);
+              onDelete();
+            }}
+            disabled={disabled}
+            className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+          >
+            삭제
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReadingCard({
+  book,
+  onDelete,
+  deleting,
+}: {
+  book: BookListItem;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
+  return (
+    <div className="relative rounded-2xl bg-white p-4 pt-10 shadow-sm">
+      <CardMenu onDelete={onDelete} disabled={deleting} />
+      <Link href={`/books/${book.id}`} className="flex items-center gap-4 hover:opacity-90 transition-opacity">
         <div className="flex-shrink-0">
           {book.cover_image ? (
             <Image
@@ -67,46 +131,71 @@ function ReadingCard({ book }: { book: BookListItem }) {
           )}
         </div>
         <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-300" />
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
 
-function FinishedCard({ book }: { book: BookListItem }) {
+function FinishedCard({
+  book,
+  onDelete,
+  deleting,
+}: {
+  book: BookListItem;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
   return (
-    <Link href={`/books/${book.id}`}>
-      <div className="flex items-center gap-3 rounded-xl bg-white p-3 shadow-sm hover:shadow-md transition-shadow">
+    <div className="relative rounded-2xl bg-white p-4 pt-10 shadow-sm">
+      <CardMenu onDelete={onDelete} disabled={deleting} />
+      <Link href={`/books/${book.id}`} className="flex items-center gap-4 hover:opacity-90 transition-opacity">
         <div className="flex-shrink-0">
           {book.cover_image ? (
             <Image
               src={book.cover_image}
               alt={book.title}
-              width={40}
-              height={56}
-              className="h-14 w-10 rounded object-cover shadow"
+              width={64}
+              height={88}
+              className="h-22 w-16 rounded-lg object-cover shadow"
             />
           ) : (
-            <CoverPlaceholder size="md" />
+            <CoverPlaceholder size="lg" />
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-gray-900">{book.title}</p>
-          <p className="mt-0.5 truncate text-xs text-gray-500">{book.author}</p>
+          <div className="mb-1.5">
+            <StatusBadge status={book.status as BookStatus} />
+          </div>
+          <p className="font-semibold leading-snug text-gray-900">{book.title}</p>
+          <p className="mt-0.5 text-sm text-gray-500">{book.author}</p>
+          {book.category && (
+            <p className="mt-0.5 text-xs text-gray-400">{book.category}</p>
+          )}
           {book.rating != null && (
-            <p className="mt-0.5 text-xs text-yellow-400">
+            <p className="mt-1 text-sm text-yellow-400">
               {'★'.repeat(book.rating)}{'☆'.repeat(5 - book.rating)}
             </p>
           )}
         </div>
-      </div>
-    </Link>
+        <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-300" />
+      </Link>
+    </div>
   );
 }
 
-function ShelfItem({ book }: { book: BookListItem }) {
+function ShelfItem({
+  book,
+  onDelete,
+  deleting,
+}: {
+  book: BookListItem;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
   return (
-    <Link href={`/books/${book.id}`}>
-      <div className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="relative rounded-xl bg-white px-3 pb-2.5 pt-8 shadow-sm">
+      <CardMenu onDelete={onDelete} disabled={deleting} />
+      <Link href={`/books/${book.id}`} className="flex items-center gap-3 hover:opacity-90 transition-opacity">
         <div className="flex-shrink-0">
           {book.cover_image ? (
             <Image
@@ -125,13 +214,30 @@ function ShelfItem({ book }: { book: BookListItem }) {
           <p className="truncate text-xs text-gray-400">{book.author}</p>
         </div>
         <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-gray-200" />
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
 
-export function BookHome({ books, canManage, error }: Props) {
+export function BookHome({ books, error }: Props) {
   const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
+
+  const handleDelete = async (id: string, title: string) => {
+    if (!confirm(`"${title}"을 삭제할까요?`)) return;
+    setDeleting(id);
+    try {
+      await deleteBook(id);
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   const reading = books.filter(
     (b) => b.status === '책상위' || b.status === '가방안'
@@ -146,14 +252,24 @@ export function BookHome({ books, canManage, error }: Props) {
           <BookOpen className="h-5 w-5 text-gray-700" />
           <h1 className="text-lg font-semibold text-gray-900">책 기록</h1>
         </div>
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-          aria-label="책 추가"
-        >
-          <Plus className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            aria-label="책 추가"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            aria-label="로그아웃"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
       </header>
 
       {error && (
@@ -168,7 +284,12 @@ export function BookHome({ books, canManage, error }: Props) {
         {reading.length > 0 ? (
           <div className="space-y-3">
             {reading.map((book) => (
-              <ReadingCard key={book.id} book={book} />
+              <ReadingCard
+                key={book.id}
+                book={book}
+                deleting={deleting === book.id}
+                onDelete={() => handleDelete(book.id, book.title)}
+              />
             ))}
           </div>
         ) : (
@@ -185,9 +306,14 @@ export function BookHome({ books, canManage, error }: Props) {
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
             완독 <span className="ml-1 font-normal normal-case text-gray-300">{finished.length}권</span>
           </h2>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-3">
             {finished.map((book) => (
-              <FinishedCard key={book.id} book={book} />
+              <FinishedCard
+                key={book.id}
+                book={book}
+                deleting={deleting === book.id}
+                onDelete={() => handleDelete(book.id, book.title)}
+              />
             ))}
           </div>
         </section>
@@ -201,7 +327,12 @@ export function BookHome({ books, canManage, error }: Props) {
           </h2>
           <div className="space-y-1.5">
             {shelf.map((book) => (
-              <ShelfItem key={book.id} book={book} />
+              <ShelfItem
+                key={book.id}
+                book={book}
+                deleting={deleting === book.id}
+                onDelete={() => handleDelete(book.id, book.title)}
+              />
             ))}
           </div>
         </section>

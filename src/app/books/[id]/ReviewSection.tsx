@@ -78,25 +78,6 @@ export function ReviewSection({
         </div>
       </div>
 
-      <button
-        onClick={generateReview}
-        disabled={generating || notes.length === 0}
-        className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-purple-100 py-2.5 text-sm font-medium text-purple-700 hover:bg-purple-200 disabled:opacity-50 transition-colors"
-      >
-        <Sparkles className="h-4 w-4" />
-        {generating ? 'AI 독후감 생성 중...' : 'AI로 독후감 초안 생성'}
-      </button>
-
-      {notes.length === 0 && (
-        <p className="mb-3 text-center text-xs text-gray-400">
-          메모가 있어야 AI 독후감을 생성할 수 있습니다.
-        </p>
-      )}
-
-      {error && (
-        <p className="mb-3 text-center text-xs text-red-500">{error}</p>
-      )}
-
       <textarea
         value={review}
         onChange={(e) => setReview(e.target.value)}
@@ -105,10 +86,29 @@ export function ReviewSection({
         className="w-full rounded-xl border border-gray-200 bg-white p-4 text-sm leading-relaxed text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 resize-none"
       />
 
+      {notes.length === 0 && (
+        <p className="mt-3 text-center text-xs text-gray-400">
+          메모가 있어야 AI 독후감을 생성할 수 있습니다.
+        </p>
+      )}
+
+      {error && (
+        <p className="mt-3 text-center text-xs text-red-500">{error}</p>
+      )}
+
+      <button
+        onClick={generateReview}
+        disabled={generating || notes.length === 0}
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-purple-100 py-2.5 text-sm font-medium text-purple-700 hover:bg-purple-200 disabled:opacity-50 transition-colors"
+      >
+        <Sparkles className="h-4 w-4" />
+        {generating ? 'AI 독후감 생성 중...' : 'AI로 독후감 초안 생성'}
+      </button>
+
       <button
         onClick={handleSave}
         disabled={saving || !review.trim()}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 py-2.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 transition-colors"
+        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 py-2.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 transition-colors"
       >
         <Save className="h-4 w-4" />
         {saving ? '저장 중...' : '저장'}
