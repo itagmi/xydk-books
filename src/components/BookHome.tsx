@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { BookOpen, Plus, ChevronRight, MoreHorizontal, LogOut } from 'lucide-react';
+import { Plus, ChevronRight, MoreHorizontal, LogOut } from 'lucide-react';
 import { deleteBook } from '@/lib/actions';
 import { createClient } from '@/lib/supabase/client';
 import { Book, BookStatus } from '@/lib/types';
@@ -27,14 +27,9 @@ function CoverPlaceholder({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
     md: 'h-16 w-12',
     lg: 'h-24 w-16',
   }[size];
-  const iconCls = {
-    sm: 'h-3 w-3',
-    md: 'h-5 w-5',
-    lg: 'h-7 w-7',
-  }[size];
   return (
     <div className={`${cls} flex flex-shrink-0 items-center justify-center rounded-md bg-gray-100`}>
-      <BookOpen className={`${iconCls} text-gray-300`} />
+      <img src="/logo.svg" alt="" className="h-5 w-auto opacity-30" />
     </div>
   );
 }
@@ -249,8 +244,8 @@ export function BookHome({ books, error }: Props) {
     <div>
       <header className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-gray-700" />
-          <h1 className="text-lg font-semibold text-gray-900">책 기록</h1>
+          <img src="/logo.svg" alt="Ginkgo" className="h-9 w-auto" />
+          <h1 className="text-lg font-light tracking-widest text-gray-800">GINKGO</h1>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -294,7 +289,7 @@ export function BookHome({ books, error }: Props) {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center rounded-2xl bg-white py-10 shadow-sm">
-            <BookOpen className="mb-2 h-8 w-8 text-gray-200" />
+            <img src="/logo.svg" alt="" className="mb-2 h-8 w-auto opacity-20" />
             <p className="text-sm text-gray-400">읽고 있는 책이 없어요</p>
           </div>
         )}

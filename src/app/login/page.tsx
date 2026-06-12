@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { BookOpen } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,12 +36,10 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mb-3 flex justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-900">
-              <BookOpen className="h-7 w-7 text-white" />
-            </div>
+          <div className="mb-2 flex justify-center">
+            <img src="/logo.svg" alt="Ginkgo" className="h-16 w-auto" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900">책 기록</h1>
+          <h1 className="text-xl font-light tracking-widest text-gray-800">GINKGO</h1>
           <p className="mt-1 text-sm text-gray-400">나의 독서 여정</p>
         </div>
 
