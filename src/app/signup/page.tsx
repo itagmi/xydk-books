@@ -1,11 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 type DoneReason = 'new' | 'existing';
+
+const RESEND_COOLDOWN = 60;
+const CIRCUMFERENCE = 2 * Math.PI * 20; // r=20
+
+function CountdownTimer({ seconds, total }: { seconds: number; total: number }) {
+  const progress = seconds / total;
+  const dashOffset = CIRCUMFERENCE * (1 - progress);
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <svg width="56" height="56" viewBox="0 0 48 48" className="-rotate-90">
+        <circle cx="24" cy="24" r="20" fill="none" stroke="#e5e7eb" strokeWidth="3" />
+        <circle
+          cx="24" cy="24" r="20"
+          fill="none"
+          stroke="#374151"
+          strokeWidth="3"
+          strokeDasharray={CIRCUMFERENCE}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 1s linear' }}
+        />
+      </svg>
+      <span className="absolute text-sm font-medium text-gray-700" style={{ marginTop: '16px' }}>
+        {seconds}
+      </span>
+    </div>
+  );
+}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -17,13 +46,27 @@ export default function SignupPage() {
   const [done, setDone] = useState<DoneReason | null>(null);
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [countdown]);
+
+  const startCountdown = () => setCountdown(RESEND_COOLDOWN);
 
   const handleResend = async () => {
     setResending(true);
     setResendMsg('');
     const supabase = createClient();
     const { error } = await supabase.auth.resend({ type: 'signup', email });
-    setResendMsg(error ? '잠시 후 다시 시도해주세요.' : '인증 이메일을 재전송했습니다.');
+    if (error) {
+      setResendMsg('잠시 후 다시 시도해주세요.');
+    } else {
+      setResendMsg('인증 이메일을 재전송했습니다.');
+      startCountdown();
+    }
     setResending(false);
   };
 
@@ -49,15 +92,14 @@ export default function SignupPage() {
       return;
     }
 
-    // auto-confirm인 경우 바로 로그인
     if (data.session) {
       router.push('/');
       router.refresh();
       return;
     }
 
-    // identities가 빈 배열이면 이미 가입된 이메일
     const isExisting = data.user?.identities?.length === 0;
+    if (!isExisting) startCountdown();
     setDone(isExisting ? 'existing' : 'new');
     setLoading(false);
   };
@@ -98,14 +140,28 @@ export default function SignupPage() {
                   <p className="mt-2 text-sm text-gray-400">
                     {email}로 인증 링크를 보냈습니다.
                   </p>
-                  <button
-                    type="button"
-                    onClick={handleResend}
-                    disabled={resending}
-                    className="mt-5 w-full rounded-xl border border-gray-200 py-3 text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                  >
-                    {resending ? '전송 중...' : '인증 이메일 다시 보내기'}
-                  </button>
+
+                  {countdown > 0 ? (
+                    <div className="relative mt-5 flex justify-center">
+                      <CountdownTimer seconds={countdown} total={RESEND_COOLDOWN} />
+                      <span className="absolute inset-0 flex items-center justify-center text-sm font-medium text-gray-700">
+                        {countdown}
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={resending}
+                      className="mt-5 w-full rounded-xl border border-gray-200 py-3 text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                    >
+                      {resending ? '전송 중...' : '인증 이메일 다시 보내기'}
+                    </button>
+                  )}
+
+                  {resendMsg && (
+                    <p className="mt-2 text-xs text-gray-400">{resendMsg}</p>
+                  )}
                   <Link
                     href="/login"
                     className="mt-4 block text-sm text-gray-400 underline underline-offset-2"
@@ -113,9 +169,6 @@ export default function SignupPage() {
                     로그인으로 돌아가기
                   </Link>
                 </>
-              )}
-              {resendMsg && (
-                <p className="mt-2 text-xs text-gray-400">{resendMsg}</p>
               )}
             </div>
           ) : (
