@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Note } from "@/lib/types";
+import { formatNoteForAI } from "@/lib/utils";
 
 export async function POST(request: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -28,8 +29,8 @@ export async function POST(request: Request) {
 
     const notesText = notes
       .sort((a, b) => a.page - b.page)
-      .map((n) => (n.page > 0 ? `[p.${n.page}] ${n.content}` : n.content))
-      .join("\n");
+      .map(formatNoteForAI)
+      .join("\n\n");
 
     const prompt = `다음은 내가 "${bookTitle}" (저자: ${author}${category ? `, 장르: ${category}` : ""})를 읽으며 남긴 메모들이야. 대괄호 안의 페이지 번호는 내가 어떤 흐름으로 읽었는지 파악하는 참고용이야:
 

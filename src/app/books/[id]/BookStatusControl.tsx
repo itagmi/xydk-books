@@ -36,7 +36,10 @@ export function BookStatusControl({ bookId, initialStatus }: Props) {
         <StatusChanger
           bookId={bookId}
           currentStatus={status}
-          onChange={setStatus}
+          onChange={(next) => {
+            setStatus(next);
+            setOpen(false);
+          }}
         />
       </Modal>
     </>

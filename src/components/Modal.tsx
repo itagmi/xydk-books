@@ -27,7 +27,7 @@ export function Modal({ open, onClose, title, children }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
         className="absolute inset-0 bg-black/40"
@@ -38,7 +38,7 @@ export function Modal({ open, onClose, title, children }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="relative z-10 w-full max-w-lg overflow-visible rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl sm:mx-4"
+        className="relative z-10 flex w-full max-w-lg max-h-[90vh] flex-col overflow-hidden rounded-2xl bg-white p-5 shadow-xl"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 id="modal-title" className="font-semibold text-gray-900">
@@ -53,7 +53,7 @@ export function Modal({ open, onClose, title, children }: Props) {
             <X className="h-5 w-5" />
           </button>
         </div>
-        {children}
+        <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
       </div>
     </div>
   );

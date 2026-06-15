@@ -56,22 +56,34 @@ export function StatusChanger({ bookId, currentStatus, onChange }: Props) {
   return (
     <div>
       {/* Progress bar */}
-      <div className="flex items-center">
-        {STEP_LABELS.map((label, i) => (
-          <div key={label} className="flex flex-1 items-center">
+      <div className="mx-auto w-full max-w-xs px-1">
+        <div className="relative flex justify-between">
+          {/* 연결선 — 원 중심 높이에 배치 */}
+          <div
+            className="pointer-events-none absolute left-[14px] right-[14px] top-[14px] h-[2px] -translate-y-1/2 bg-gray-200"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute left-[14px] top-[14px] h-[2px] -translate-y-1/2 bg-gray-900 transition-all duration-300"
+            style={{ width: `calc((100% - 28px) * ${step / 2})` }}
+            aria-hidden
+          />
+
+          {STEP_LABELS.map((label, i) => (
             <button
+              key={label}
               onClick={() => goToStep(i as Step)}
               disabled={pending}
-              className="flex flex-col items-center gap-1 disabled:cursor-not-allowed"
+              className="relative z-10 flex w-14 flex-col items-center gap-1.5 disabled:cursor-not-allowed"
             >
               <div
                 className={cn(
-                  'flex h-7 w-7 items-center justify-center rounded-full border-2 transition-all',
+                  'flex h-7 w-7 items-center justify-center rounded-full border-2 bg-white transition-all',
                   i < step
                     ? 'border-gray-900 bg-gray-900'
                     : i === step
-                    ? 'border-gray-900 bg-white'
-                    : 'border-gray-200 bg-white'
+                      ? 'border-gray-900'
+                      : 'border-gray-200'
                 )}
               >
                 {i < step ? (
@@ -87,23 +99,15 @@ export function StatusChanger({ bookId, currentStatus, onChange }: Props) {
               </div>
               <span
                 className={cn(
-                  'text-xs font-medium whitespace-nowrap',
-                  i === step ? 'text-gray-900' : i < step ? 'text-gray-400' : 'text-gray-300'
+                  'text-center text-xs font-medium leading-tight',
+                  i === step ? 'text-gray-900' : i < step ? 'text-gray-500' : 'text-gray-300'
                 )}
               >
                 {label}
               </span>
             </button>
-            {i < 2 && (
-              <div
-                className={cn(
-                  'mb-5 h-px flex-1 transition-colors',
-                  i < step ? 'bg-gray-900' : 'bg-gray-200'
-                )}
-              />
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Sub-state toggle when reading */}

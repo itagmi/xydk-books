@@ -80,19 +80,10 @@ export default async function BookDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {isReading && (
+      {(isReading || isFinished) && (
         <NotesSection
           bookId={book.id}
           notes={(notes ?? []) as Note[]}
-          variant="inline"
-        />
-      )}
-
-      {isFinished && (
-        <NotesSection
-          bookId={book.id}
-          notes={(notes ?? []) as Note[]}
-          variant="modal"
         />
       )}
 

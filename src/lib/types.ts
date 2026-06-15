@@ -18,6 +18,9 @@ export interface Note {
   id: string;
   book_id: string;
   page: number;
-  content: string;
+  quote: string;
+  reflection: string;
+  /** @deprecated legacy — quote/reflection 사용 */
+  content?: string;
   created_at: string;
 }

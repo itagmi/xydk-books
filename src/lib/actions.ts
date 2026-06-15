@@ -3,12 +3,51 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from './supabase/server';
 import { BookStatus } from './types';
+import { isMissingQuoteColumnError, toLegacyNoteContent } from './utils';
 
-export async function addNote(bookId: string, page: number, content: string) {
+export async function addNote(
+  bookId: string,
+  page: number,
+  quote: string,
+  reflection: string
+) {
   const supabase = await createClient();
-  const { error } = await supabase
+  let { error } = await supabase
     .from('notes')
-    .insert({ book_id: bookId, page, content });
+    .insert({ book_id: bookId, page, quote, reflection, content: '' });
+
+  if (error && isMissingQuoteColumnError(error.message)) {
+    ({ error } = await supabase.from('notes').insert({
+      book_id: bookId,
+      page,
+      content: toLegacyNoteContent(quote, reflection),
+    }));
+  }
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/books/${bookId}`);
+}
+
+export async function updateNote(
+  noteId: string,
+  bookId: string,
+  page: number,
+  quote: string,
+  reflection: string
+) {
+  const supabase = await createClient();
+  let { error } = await supabase
+    .from('notes')
+    .update({ page, quote, reflection, content: '' })
+    .eq('id', noteId);
+
+  if (error && isMissingQuoteColumnError(error.message)) {
+    ({ error } = await supabase
+      .from('notes')
+      .update({ page, content: toLegacyNoteContent(quote, reflection) })
+      .eq('id', noteId));
+  }
+
   if (error) throw new Error(error.message);
   revalidatePath(`/books/${bookId}`);
 }
