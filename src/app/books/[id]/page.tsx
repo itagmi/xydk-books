@@ -1,7 +1,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { BookStatus, Note } from '@/lib/types';
 import { NotesSection } from './NotesSection';
 import { ReviewSection } from './ReviewSection';
@@ -10,6 +12,35 @@ import { ArrowLeft, BookOpen } from 'lucide-react';
 
 interface Props {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = createAdminClient();
+  const { data: book } = await supabase
+    .from('books')
+    .select('title, author, category, cover_image')
+    .eq('id', id)
+    .single();
+
+  if (!book) {
+    return { title: '책을 찾을 수 없음' };
+  }
+
+  const description = [book.author, book.category].filter(Boolean).join(' · ');
+
+  return {
+    title: book.title,
+    description,
+    openGraph: {
+      title: book.title,
+      description,
+      type: 'article',
+      images: book.cover_image
+        ? [{ url: book.cover_image, alt: book.title }]
+        : [{ url: '/og-image.png', width: 1200, height: 630 }],
+    },
+  };
 }
 
 export default async function BookDetailPage({ params }: Props) {

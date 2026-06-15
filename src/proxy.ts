@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { isSocialCrawler } from '@/lib/site';
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -31,13 +32,14 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+  const crawler = isSocialCrawler(request.headers.get('user-agent'));
   const isPublic =
     path.startsWith('/login') ||
     path.startsWith('/signup') ||
     path.startsWith('/auth/callback') ||
     path.startsWith('/api/books/public');
 
-  if (!user && !isPublic) {
+  if (!user && !isPublic && !crawler) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     const redirect = NextResponse.redirect(url);
@@ -63,6 +65,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|icon-.*\\.png|.*\\.svg).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|icon-.*\\.png|og-image\\.png|.*\\.svg).*)',
   ],
 };
