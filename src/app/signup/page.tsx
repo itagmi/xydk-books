@@ -91,9 +91,6 @@ export default function SignupPage() {
                   >
                     로그인하기
                   </Link>
-                  <p className="mt-3 text-xs text-gray-400">
-                    인증 메일을 받지 못하셨다면 새 이메일 주소로 가입해보세요.
-                  </p>
                 </>
               ) : (
                 <>
