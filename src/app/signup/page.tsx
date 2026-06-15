@@ -13,6 +13,21 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
+
+  const handleResend = async () => {
+    setResending(true);
+    setResendMsg('');
+    const supabase = createClient();
+    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    if (error) {
+      setResendMsg('다시 시도해주세요.');
+    } else {
+      setResendMsg('이메일을 재전송했습니다.');
+    }
+    setResending(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,9 +84,20 @@ export default function SignupPage() {
               <p className="mt-2 text-sm text-gray-400">
                 {email}로 인증 링크를 보냈습니다.
               </p>
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending}
+                className="mt-5 w-full rounded-xl border border-gray-200 py-3 text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                {resending ? '전송 중...' : '인증 이메일 다시 보내기'}
+              </button>
+              {resendMsg && (
+                <p className="mt-2 text-xs text-gray-400">{resendMsg}</p>
+              )}
               <Link
                 href="/login"
-                className="mt-6 block text-sm text-gray-500 underline underline-offset-2"
+                className="mt-4 block text-sm text-gray-400 underline underline-offset-2"
               >
                 로그인으로 돌아가기
               </Link>
