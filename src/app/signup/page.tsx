@@ -91,14 +91,9 @@ export default function SignupPage() {
                   >
                     로그인하기
                   </Link>
-                  <button
-                    type="button"
-                    onClick={handleResend}
-                    disabled={resending}
-                    className="mt-2 w-full rounded-xl border border-gray-200 py-3 text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                  >
-                    {resending ? '전송 중...' : '인증 메일을 못 받으셨나요? 재전송'}
-                  </button>
+                  <p className="mt-3 text-xs text-gray-400">
+                    인증 메일을 받지 못하셨다면 새 이메일 주소로 가입해보세요.
+                  </p>
                 </>
               ) : (
                 <>
