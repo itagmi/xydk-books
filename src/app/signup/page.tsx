@@ -8,30 +8,6 @@ import { createClient } from '@/lib/supabase/client';
 type DoneReason = 'new' | 'existing';
 
 const RESEND_COOLDOWN = 120;
-const CIRCUMFERENCE = 2 * Math.PI * 20; // r=20
-
-function CountdownTimer({ seconds, total }: { seconds: number; total: number }) {
-  const dashOffset = CIRCUMFERENCE * (1 - seconds / total);
-
-  return (
-    <div className="relative mt-5 inline-flex items-center justify-center">
-      <svg width="56" height="56" viewBox="0 0 48 48" className="-rotate-90">
-        <circle cx="24" cy="24" r="20" fill="none" stroke="#e5e7eb" strokeWidth="3" />
-        <circle
-          cx="24" cy="24" r="20"
-          fill="none"
-          stroke="#374151"
-          strokeWidth="3"
-          strokeDasharray={CIRCUMFERENCE}
-          strokeDashoffset={dashOffset}
-          strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 1s linear' }}
-        />
-      </svg>
-      <span className="absolute text-sm font-medium text-gray-700">{seconds}</span>
-    </div>
-  );
-}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -59,6 +35,7 @@ export default function SignupPage() {
     const supabase = createClient();
     const { error } = await supabase.auth.resend({ type: 'signup', email });
     if (error) {
+      console.error('resend error:', error.message, error.status);
       setResendMsg('잠시 후 다시 시도해주세요.');
     } else {
       setResendMsg('인증 이메일을 재전송했습니다.');
@@ -138,20 +115,18 @@ export default function SignupPage() {
                     {email}로 인증 링크를 보냈습니다.
                   </p>
 
-                  {countdown > 0 ? (
-                    <div className="flex justify-center">
-                      <CountdownTimer seconds={countdown} total={RESEND_COOLDOWN} />
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleResend}
-                      disabled={resending}
-                      className="mt-5 w-full rounded-xl border border-gray-200 py-3 text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                    >
-                      {resending ? '전송 중...' : '인증 이메일 다시 보내기'}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resending || countdown > 0}
+                    className="mt-5 w-full rounded-xl border border-gray-200 py-3 text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {resending
+                      ? '전송 중...'
+                      : countdown > 0
+                        ? `${countdown}초 후 재전송 가능`
+                        : '인증 이메일 다시 보내기'}
+                  </button>
 
                   {resendMsg && (
                     <p className="mt-2 text-xs text-gray-400">{resendMsg}</p>
