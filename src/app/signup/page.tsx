@@ -7,15 +7,14 @@ import { createClient } from '@/lib/supabase/client';
 
 type DoneReason = 'new' | 'existing';
 
-const RESEND_COOLDOWN = 60;
+const RESEND_COOLDOWN = 120;
 const CIRCUMFERENCE = 2 * Math.PI * 20; // r=20
 
 function CountdownTimer({ seconds, total }: { seconds: number; total: number }) {
-  const progress = seconds / total;
-  const dashOffset = CIRCUMFERENCE * (1 - progress);
+  const dashOffset = CIRCUMFERENCE * (1 - seconds / total);
 
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="relative mt-5 inline-flex items-center justify-center">
       <svg width="56" height="56" viewBox="0 0 48 48" className="-rotate-90">
         <circle cx="24" cy="24" r="20" fill="none" stroke="#e5e7eb" strokeWidth="3" />
         <circle
@@ -29,9 +28,7 @@ function CountdownTimer({ seconds, total }: { seconds: number; total: number }) 
           style={{ transition: 'stroke-dashoffset 1s linear' }}
         />
       </svg>
-      <span className="absolute text-sm font-medium text-gray-700" style={{ marginTop: '16px' }}>
-        {seconds}
-      </span>
+      <span className="absolute text-sm font-medium text-gray-700">{seconds}</span>
     </div>
   );
 }
@@ -142,11 +139,8 @@ export default function SignupPage() {
                   </p>
 
                   {countdown > 0 ? (
-                    <div className="relative mt-5 flex justify-center">
+                    <div className="flex justify-center">
                       <CountdownTimer seconds={countdown} total={RESEND_COOLDOWN} />
-                      <span className="absolute inset-0 flex items-center justify-center text-sm font-medium text-gray-700">
-                        {countdown}
-                      </span>
                     </div>
                   ) : (
                     <button
