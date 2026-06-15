@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
+type DoneReason = 'new' | 'existing';
+
 export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -12,7 +14,7 @@ export default function SignupPage() {
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<DoneReason | null>(null);
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
 
@@ -21,11 +23,7 @@ export default function SignupPage() {
     setResendMsg('');
     const supabase = createClient();
     const { error } = await supabase.auth.resend({ type: 'signup', email });
-    if (error) {
-      setResendMsg('다시 시도해주세요.');
-    } else {
-      setResendMsg('이메일을 재전송했습니다.');
-    }
+    setResendMsg(error ? '잠시 후 다시 시도해주세요.' : '인증 이메일을 재전송했습니다.');
     setResending(false);
   };
 
@@ -51,15 +49,16 @@ export default function SignupPage() {
       return;
     }
 
-    // 이메일 확인 불필요(auto-confirm)인 경우 바로 로그인 처리
+    // auto-confirm인 경우 바로 로그인
     if (data.session) {
       router.push('/');
       router.refresh();
       return;
     }
 
-    // 이메일 확인이 필요한 경우
-    setDone(true);
+    // identities가 빈 배열이면 이미 가입된 이메일
+    const isExisting = data.user?.identities?.length === 0;
+    setDone(isExisting ? 'existing' : 'new');
     setLoading(false);
   };
 
@@ -80,10 +79,21 @@ export default function SignupPage() {
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           {done ? (
             <div className="py-4 text-center">
-              <p className="text-sm font-medium text-gray-800">이메일을 확인해주세요</p>
-              <p className="mt-2 text-sm text-gray-400">
-                {email}로 인증 링크를 보냈습니다.
-              </p>
+              {done === 'existing' ? (
+                <>
+                  <p className="text-sm font-medium text-gray-800">이미 가입 요청된 이메일이에요</p>
+                  <p className="mt-2 text-sm text-gray-400">
+                    {email}로 인증 링크를 재전송할까요?
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-gray-800">이메일을 확인해주세요</p>
+                  <p className="mt-2 text-sm text-gray-400">
+                    {email}로 인증 링크를 보냈습니다.
+                  </p>
+                </>
+              )}
               <button
                 type="button"
                 onClick={handleResend}
