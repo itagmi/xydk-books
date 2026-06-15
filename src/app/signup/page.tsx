@@ -81,10 +81,24 @@ export default function SignupPage() {
             <div className="py-4 text-center">
               {done === 'existing' ? (
                 <>
-                  <p className="text-sm font-medium text-gray-800">이미 가입 요청된 이메일이에요</p>
+                  <p className="text-sm font-medium text-gray-800">이미 가입된 이메일이에요</p>
                   <p className="mt-2 text-sm text-gray-400">
-                    {email}로 인증 링크를 재전송할까요?
+                    인증을 완료했다면 바로 로그인할 수 있어요.
                   </p>
+                  <Link
+                    href="/login"
+                    className="mt-5 block w-full rounded-xl bg-gray-900 py-3 text-center text-sm font-medium text-white hover:bg-gray-700 transition-colors"
+                  >
+                    로그인하기
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resending}
+                    className="mt-2 w-full rounded-xl border border-gray-200 py-3 text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                  >
+                    {resending ? '전송 중...' : '인증 메일을 못 받으셨나요? 재전송'}
+                  </button>
                 </>
               ) : (
                 <>
@@ -92,25 +106,25 @@ export default function SignupPage() {
                   <p className="mt-2 text-sm text-gray-400">
                     {email}로 인증 링크를 보냈습니다.
                   </p>
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resending}
+                    className="mt-5 w-full rounded-xl border border-gray-200 py-3 text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                  >
+                    {resending ? '전송 중...' : '인증 이메일 다시 보내기'}
+                  </button>
+                  <Link
+                    href="/login"
+                    className="mt-4 block text-sm text-gray-400 underline underline-offset-2"
+                  >
+                    로그인으로 돌아가기
+                  </Link>
                 </>
               )}
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={resending}
-                className="mt-5 w-full rounded-xl border border-gray-200 py-3 text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-              >
-                {resending ? '전송 중...' : '인증 이메일 다시 보내기'}
-              </button>
               {resendMsg && (
                 <p className="mt-2 text-xs text-gray-400">{resendMsg}</p>
               )}
-              <Link
-                href="/login"
-                className="mt-4 block text-sm text-gray-400 underline underline-offset-2"
-              >
-                로그인으로 돌아가기
-              </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
