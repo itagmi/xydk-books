@@ -217,6 +217,14 @@ function ShelfItem({
 export function BookHome({ books, error }: Props) {
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [nickname, setNickname] = useState('');
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setNickname(data.user?.user_metadata?.nickname ?? '');
+    });
+  }, []);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -245,7 +253,12 @@ export function BookHome({ books, error }: Props) {
       <header className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <img src="/logo.svg" alt="Ginkgo" className="h-9 w-auto" />
-          <h1 className="text-lg font-light tracking-widest text-gray-800">GINKGO</h1>
+          <div>
+            <h1 className="text-lg font-light tracking-widest text-gray-800">GINKGO</h1>
+            {nickname && (
+              <p className="text-xs text-gray-400">{nickname}의 서재</p>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <button
