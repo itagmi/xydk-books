@@ -12,8 +12,11 @@ import { Book, type BookStatus } from '@/lib/types';
 import { BookForm } from '@/components/BookForm';
 import { Modal } from '@/components/Modal';
 import { GinkgoMemoModal } from '@/components/GinkgoMemoModal';
+import { FinishReadingConfirmModal } from '@/components/FinishReadingConfirmModal';
+import { EmptyDeskGuideIllustration } from '@/components/EmptyDeskGuideIllustration';
 import { LocationScene } from '@/components/LocationScene';
-import { isStatusAtCapacity, STATUS_LIMITS } from '@/lib/book-limits';
+import { isStatusAtCapacity, STATUS_LIMITS, canFinishReading } from '@/lib/book-limits';
+import { markFinishedReadingToast } from '@/components/FinishedReadingToast';
 import { STATUS_LABELS } from '@/lib/utils';
 
 type BookListItem = Pick<
@@ -46,6 +49,7 @@ function ReadingLocationMenu({
   deskCount,
   bagCount,
   onDelete,
+  onRequestFinish,
   showDetail = false,
   disabled,
   showLocation = true,
@@ -57,6 +61,7 @@ function ReadingLocationMenu({
   deskCount: number;
   bagCount: number;
   onDelete?: () => void;
+  onRequestFinish?: () => void;
   showDetail?: boolean;
   disabled?: boolean;
   showLocation?: boolean;
@@ -73,7 +78,7 @@ function ReadingLocationMenu({
 
   const deskFull = isStatusAtCapacity('책상위', deskCount, book.status);
   const bagFull = isStatusAtCapacity('가방안', bagCount, book.status);
-  const showFinish = book.status !== '완독완료';
+  const showFinish = canFinishReading(book.status);
   const hasStatusActions = showLocation || showFinish;
 
   const updateMenuPosition = useCallback(() => {
@@ -136,6 +141,9 @@ function ReadingLocationMenu({
         return;
       }
     }
+    if (status === '완독완료' && !canFinishReading(book.status)) {
+      return;
+    }
     setPending(true);
     try {
       await updateBookStatus(book.id, status);
@@ -196,7 +204,8 @@ function ReadingLocationMenu({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              changeStatus('완독완료');
+              setOpen(false);
+              onRequestFinish?.();
             }}
             disabled={pending}
             className={`${itemCls}${showLocation ? ' border-t border-gray-100' : ''}`}
@@ -261,6 +270,7 @@ function ReadingCard({
   variant,
   onDelete,
   onMemo,
+  onRequestFinish,
 }: {
   book: BookListItem;
   deskCount: number;
@@ -269,6 +279,7 @@ function ReadingCard({
   variant: SceneVariant;
   onDelete: () => void;
   onMemo: () => void;
+  onRequestFinish: () => void;
 }) {
   const cardClass = variant === 'bag' ? 'scene-card-bag' : 'scene-card-desk';
 
@@ -280,6 +291,7 @@ function ReadingCard({
         bagCount={bagCount}
         disabled={deleting}
         onDelete={onDelete}
+        onRequestFinish={onRequestFinish}
         showDetail
       />
       <div className="flex items-center gap-4">
@@ -325,6 +337,7 @@ function ReadingCard({
 function ShelfSpine({
   book,
   onDelete,
+  onRequestFinish,
   deleting,
   finished = false,
   deskCount,
@@ -332,6 +345,7 @@ function ShelfSpine({
 }: {
   book: BookListItem;
   onDelete: () => void;
+  onRequestFinish: () => void;
   deleting: boolean;
   finished?: boolean;
   deskCount: number;
@@ -381,6 +395,7 @@ function ShelfSpine({
         bagCount={bagCount}
         disabled={deleting}
         onDelete={onDelete}
+        onRequestFinish={onRequestFinish}
         showLocation={!finished}
         showDetail
         className="absolute -right-1 -top-1 z-10"
@@ -394,6 +409,7 @@ function ShelfSpine({
 function ShelfBoard({
   books,
   onDelete,
+  onRequestFinish,
   deleting,
   finished = false,
   deskCount,
@@ -401,6 +417,7 @@ function ShelfBoard({
 }: {
   books: BookListItem[];
   onDelete: (id: string, title: string) => void;
+  onRequestFinish: (id: string, title: string) => void;
   deleting: string | null;
   finished?: boolean;
   deskCount: number;
@@ -417,6 +434,7 @@ function ShelfBoard({
           bagCount={bagCount}
           deleting={deleting === book.id}
           onDelete={() => onDelete(book.id, book.title)}
+          onRequestFinish={() => onRequestFinish(book.id, book.title)}
         />
       ))}
     </div>
@@ -453,9 +471,12 @@ function chunkBooks<T>(items: T[], size: number): T[][] {
 }
 
 export function BookHome({ books, error }: Props) {
+  const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const [finishTarget, setFinishTarget] = useState<{ id: string; title: string } | null>(null);
+  const [finishPending, setFinishPending] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [memoBook, setMemoBook] = useState<BookListItem | null>(null);
   const [nickname, setNickname] = useState('');
@@ -481,6 +502,24 @@ export function BookHome({ books, error }: Props) {
 
   const requestDelete = (id: string, title: string) => {
     setDeleteTarget({ id, title });
+  };
+
+  const requestFinish = (id: string, title: string) => {
+    setFinishTarget({ id, title });
+  };
+
+  const confirmFinish = async () => {
+    if (!finishTarget || finishPending) return;
+    const { id } = finishTarget;
+    setFinishPending(true);
+    setFinishTarget(null);
+    try {
+      await updateBookStatus(id, '완독완료');
+      markFinishedReadingToast();
+      router.push(`/books/${id}?review=1`);
+    } finally {
+      setFinishPending(false);
+    }
   };
 
   const confirmDelete = async () => {
@@ -511,12 +550,31 @@ export function BookHome({ books, error }: Props) {
     .filter(Boolean)
     .join(' · ');
 
-  const emptyReading = (
-    <div className="flex flex-col items-center justify-center py-10">
-      <img src="/logo.svg" alt="" className="mb-2 h-8 w-auto opacity-20" />
-      <p className="text-sm text-amber-900/50">읽고 있는 책이 없어요</p>
-    </div>
-  );
+  const emptyReading =
+    books.length === 0 ? (
+      <div className="flex flex-col items-center justify-center gap-5 px-4 py-8 text-center">
+        <EmptyDeskGuideIllustration />
+        <div className="space-y-2">
+          <p className="text-sm leading-relaxed text-amber-950/85">
+            Ginkgo는 읽는 책을 책상·가방·책장에 두고
+            <br />
+            메모와 독후감까지 남기는 독서 기록 앱이에요.
+          </p>
+          <p className="text-xs leading-relaxed text-amber-900/55">
+            오른쪽 위 <span className="font-medium text-amber-900/70">+</span> 버튼으로
+            책을 추가한 뒤, 책상 위에 올리면 읽기가 시작돼요.
+          </p>
+        </div>
+        <p className="text-sm font-medium text-amber-900/75">
+          첫 책을 책상위에 올려 보세요
+        </p>
+      </div>
+    ) : (
+      <div className="flex flex-col items-center justify-center py-10">
+        <img src="/logo.svg" alt="" className="mb-2 h-8 w-auto opacity-20" />
+        <p className="text-sm text-amber-900/50">읽고 있는 책이 없어요</p>
+      </div>
+    );
 
   return (
     <div>
@@ -570,6 +628,7 @@ export function BookHome({ books, error }: Props) {
                     deleting={deleting === book.id}
                     onDelete={() => requestDelete(book.id, book.title)}
                     onMemo={() => setMemoBook(book)}
+                    onRequestFinish={() => requestFinish(book.id, book.title)}
                   />
                 ))}
               </div>
@@ -588,6 +647,7 @@ export function BookHome({ books, error }: Props) {
                     deleting={deleting === book.id}
                     onDelete={() => requestDelete(book.id, book.title)}
                     onMemo={() => setMemoBook(book)}
+                    onRequestFinish={() => requestFinish(book.id, book.title)}
                   />
                 ))}
               </div>
@@ -614,6 +674,7 @@ export function BookHome({ books, error }: Props) {
                   books={row}
                   deleting={deleting}
                   onDelete={requestDelete}
+                  onRequestFinish={requestFinish}
                   deskCount={onDesk.length}
                   bagCount={inBag.length}
                 />
@@ -627,6 +688,7 @@ export function BookHome({ books, error }: Props) {
                   finished
                   deleting={deleting}
                   onDelete={requestDelete}
+                  onRequestFinish={requestFinish}
                   deskCount={onDesk.length}
                   bagCount={inBag.length}
                 />
@@ -634,12 +696,6 @@ export function BookHome({ books, error }: Props) {
             </ShelfZone>
           </div>
         </LocationScene>
-      )}
-
-      {books.length === 0 && !error && (
-        <p className="mt-12 text-center text-sm text-gray-400">
-          아직 등록된 책이 없습니다.
-        </p>
       )}
 
       <Modal open={adding} onClose={() => setAdding(false)} title="새 책 추가">
@@ -677,6 +733,14 @@ export function BookHome({ books, error }: Props) {
           </button>
         </div>
       </Modal>
+
+      <FinishReadingConfirmModal
+        open={finishTarget != null}
+        bookTitle={finishTarget?.title}
+        onClose={() => setFinishTarget(null)}
+        onConfirm={confirmFinish}
+        pending={finishPending}
+      />
 
       <GinkgoMemoModal book={memoBook} onClose={() => setMemoBook(null)} />
 

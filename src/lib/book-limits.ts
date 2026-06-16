@@ -28,6 +28,14 @@ export function isStatusAtCapacity(
   return count >= limit;
 }
 
+export function canFinishReading(status: BookStatus): boolean {
+  return status === '책상위' || status === '가방안';
+}
+
+export function finishReadingErrorMessage(): string {
+  return '읽기 전 책은 완독 처리할 수 없어요. 먼저 책상이나 가방으로 옮겨 주세요.';
+}
+
 export async function assertStatusCapacity(
   supabase: SupabaseClient,
   status: BookStatus,

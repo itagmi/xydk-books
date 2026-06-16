@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from './supabase/server';
-import { assertStatusCapacity } from './book-limits';
+import { assertStatusCapacity, canFinishReading, finishReadingErrorMessage } from './book-limits';
 import { BookStatus } from './types';
 import { isMissingQuoteColumnError, toLegacyNoteContent } from './utils';
 
@@ -62,6 +62,17 @@ export async function deleteNote(noteId: string, bookId: string) {
 
 export async function updateBookStatus(bookId: string, status: BookStatus) {
   const supabase = await createClient();
+  if (status === '완독완료') {
+    const { data: book, error: fetchError } = await supabase
+      .from('books')
+      .select('status')
+      .eq('id', bookId)
+      .single();
+    if (fetchError) throw new Error(fetchError.message);
+    if (!canFinishReading(book.status)) {
+      throw new Error(finishReadingErrorMessage());
+    }
+  }
   if (status === '책상위' || status === '가방안') {
     await assertStatusCapacity(supabase, status, bookId);
   }
@@ -107,7 +118,6 @@ export async function createBook(data: {
   });
   if (error) throw new Error(error.message);
   revalidatePath('/');
-  revalidatePath('/admin');
 }
 
 export async function updateBook(
@@ -129,7 +139,6 @@ export async function updateBook(
   if (error) throw new Error(error.message);
   revalidatePath('/');
   revalidatePath(`/books/${bookId}`);
-  revalidatePath('/admin');
 }
 
 export async function deleteBook(bookId: string) {
@@ -137,5 +146,4 @@ export async function deleteBook(bookId: string) {
   const { error } = await supabase.from('books').delete().eq('id', bookId);
   if (error) throw new Error(error.message);
   revalidatePath('/');
-  revalidatePath('/admin');
 }

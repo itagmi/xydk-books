@@ -3,7 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateBookStatus } from '@/lib/actions';
-import { isStatusAtCapacity, statusLimitErrorMessage } from '@/lib/book-limits';
+import {
+  canFinishReading,
+  finishReadingErrorMessage,
+  isStatusAtCapacity,
+  statusLimitErrorMessage,
+} from '@/lib/book-limits';
+import { markFinishedReadingToast } from '@/components/FinishedReadingToast';
 import { BookStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
@@ -14,6 +20,7 @@ interface Props {
   deskCount: number;
   bagCount: number;
   onChange?: (status: BookStatus) => void;
+  onRequestFinish?: () => void;
 }
 
 type Step = 0 | 1 | 2;
@@ -32,6 +39,7 @@ export function StatusChanger({
   deskCount,
   bagCount,
   onChange,
+  onRequestFinish,
 }: Props) {
   const router = useRouter();
   const [status, setStatus] = useState(currentStatus);
@@ -48,6 +56,10 @@ export function StatusChanger({
 
   const change = async (next: BookStatus) => {
     if (next === status || pending) return;
+    if (next === '완독완료' && !canFinishReading(status)) {
+      setError(finishReadingErrorMessage());
+      return;
+    }
     if (isStatusAtCapacity(next, next === '책상위' ? deskCount : bagCount, status)) {
       setError(statusLimitErrorMessage(next));
       return;
@@ -58,7 +70,12 @@ export function StatusChanger({
       await updateBookStatus(bookId, next);
       setStatus(next);
       onChange?.(next);
-      router.refresh();
+      if (next === '완독완료') {
+        markFinishedReadingToast();
+        router.push(`/books/${bookId}?review=1`);
+      } else {
+        router.refresh();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '상태 변경에 실패했습니다.');
     } finally {
@@ -66,13 +83,22 @@ export function StatusChanger({
     }
   };
 
+  const requestFinish = () => {
+    if (!canFinishReading(status)) {
+      setError(finishReadingErrorMessage());
+      return;
+    }
+    onRequestFinish?.();
+  };
+
   const goToStep = (s: Step) => {
+    if (status === '완독완료') return;
     if (s === 0) {
       change('책장속');
       return;
     }
     if (s === 2) {
-      change('완독완료');
+      requestFinish();
       return;
     }
     if (status === '책상위' || status === '가방안') return;
@@ -99,7 +125,12 @@ export function StatusChanger({
             <button
               key={label}
               onClick={() => goToStep(i as Step)}
-              disabled={pending || (i === 1 && step !== 1 && deskFull && bagFull)}
+              disabled={
+                pending ||
+                status === '완독완료' ||
+                (i === 2 && !canFinishReading(status)) ||
+                (i === 1 && step !== 1 && deskFull && bagFull)
+              }
               className="relative z-10 flex w-14 flex-col items-center gap-1.5 disabled:cursor-not-allowed"
             >
               <div
@@ -182,7 +213,7 @@ export function StatusChanger({
       )}
       {step === 1 && (
         <button
-          onClick={() => change('완독완료')}
+          onClick={requestFinish}
           disabled={pending}
           className="mt-3 w-full rounded-xl bg-gray-900 py-2.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 transition-colors"
         >
