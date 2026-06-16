@@ -55,6 +55,10 @@ export default function SignupPage() {
       setError('비밀번호는 6자 이상이어야 합니다.');
       return;
     }
+    if (nickname.trim().length < 2 || nickname.trim().length > 10) {
+      setError('닉네임은 2~10자로 입력해주세요.');
+      return;
+    }
     setLoading(true);
     setError('');
 
@@ -160,7 +164,7 @@ export default function SignupPage() {
                 type="text"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                placeholder="닉네임"
+                placeholder="닉네임 (2~10자)"
                 required
                 autoComplete="nickname"
                 className={inputCls}
