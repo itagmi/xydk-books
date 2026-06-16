@@ -12,6 +12,7 @@ const RESEND_COOLDOWN = 120;
 export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
+  const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,7 +59,11 @@ export default function SignupPage() {
     setError('');
 
     const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { nickname } },
+    });
 
     if (error) {
       setError(error.message);
@@ -149,6 +154,15 @@ export default function SignupPage() {
                 placeholder="이메일"
                 required
                 autoComplete="email"
+                className={inputCls}
+              />
+              <input
+                type="text"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="닉네임"
+                required
+                autoComplete="nickname"
                 className={inputCls}
               />
               <input
