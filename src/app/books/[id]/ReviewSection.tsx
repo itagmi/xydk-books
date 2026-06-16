@@ -29,6 +29,7 @@ export function ReviewSection({
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [remaining, setRemaining] = useState<number | null>(null);
 
   const generateReview = async () => {
     setGenerating(true);
@@ -42,9 +43,11 @@ export function ReviewSection({
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? '독후감 생성 중 오류가 발생했습니다.');
+        if (data.remaining !== undefined) setRemaining(data.remaining);
         return;
       }
       if (data.review) setReview(data.review);
+      if (data.remaining !== undefined) setRemaining(data.remaining);
     } catch {
       setError('독후감 생성 중 오류가 발생했습니다.');
     } finally {
@@ -98,11 +101,17 @@ export function ReviewSection({
 
       <button
         onClick={generateReview}
-        disabled={generating || notes.length === 0}
+        disabled={generating || notes.length === 0 || remaining === 0}
         className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-purple-100 py-2.5 text-sm font-medium text-purple-700 hover:bg-purple-200 disabled:opacity-50 transition-colors"
       >
         <Sparkles className="h-4 w-4" />
-        {generating ? 'AI 독후감 생성 중...' : 'AI로 독후감 초안 생성'}
+        {generating
+          ? 'AI 독후감 생성 중...'
+          : remaining === 0
+            ? '이번 달 생성 한도 초과'
+            : remaining !== null
+              ? `AI로 독후감 초안 생성 (이번 달 ${remaining}회 남음)`
+              : 'AI로 독후감 초안 생성'}
       </button>
 
       <button

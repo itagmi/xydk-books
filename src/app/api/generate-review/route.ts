@@ -1,16 +1,44 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Note } from "@/lib/types";
 import { formatNoteForAI } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+const MONTHLY_LIMIT = Number(process.env.REVIEW_MONTHLY_LIMIT ?? 5);
+
+function currentMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 export async function POST(request: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return Response.json(
-      {
-        error:
-          "ANTHROPIC_API_KEY가 설정되지 않았습니다. .env 파일에 API 키를 추가해 주세요.",
-      },
+      { error: "ANTHROPIC_API_KEY가 설정되지 않았습니다." },
       { status: 500 },
+    );
+  }
+
+  // 인증 확인
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
+  // 월별 사용량 확인
+  const admin = createAdminClient();
+  const { data: userData } = await admin.auth.admin.getUserById(user.id);
+  const meta = userData?.user?.user_metadata ?? {};
+  const gen = meta.review_gen as { month?: string; count?: number } | undefined;
+  const month = currentMonth();
+  const usedCount = gen?.month === month ? (gen.count ?? 0) : 0;
+
+  if (usedCount >= MONTHLY_LIMIT) {
+    return Response.json(
+      { error: `이번 달 AI 독후감 생성 한도(${MONTHLY_LIMIT}회)를 초과했습니다.`, remaining: 0 },
+      { status: 429 },
     );
   }
 
@@ -63,7 +91,13 @@ ${notesText}
       );
     }
 
-    return Response.json({ review });
+    // 사용 횟수 업데이트
+    const newCount = usedCount + 1;
+    await admin.auth.admin.updateUserById(user.id, {
+      user_metadata: { ...meta, review_gen: { month, count: newCount } },
+    });
+
+    return Response.json({ review, remaining: MONTHLY_LIMIT - newCount });
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
@@ -73,10 +107,7 @@ ${notesText}
       message.includes("invalid x-api-key")
     ) {
       return Response.json(
-        {
-          error:
-            "Anthropic API 키가 올바르지 않습니다. console.anthropic.com에서 키를 확인해 주세요.",
-        },
+        { error: "Anthropic API 키가 올바르지 않습니다." },
         { status: 401 },
       );
     }
