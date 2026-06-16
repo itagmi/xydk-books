@@ -3,10 +3,16 @@ import { createAdminClient } from '@/lib/supabase/admin';
 export async function GET() {
   const supabase = createAdminClient();
 
-  const { data, error } = await supabase
+  const ownerId = process.env.PUBLIC_OWNER_USER_ID;
+
+  const query = supabase
     .from('books')
     .select('title, author, status, cover_image, category, review')
     .order('created_at', { ascending: false });
+
+  if (ownerId) query.eq('user_id', ownerId);
+
+  const { data, error } = await query;
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
