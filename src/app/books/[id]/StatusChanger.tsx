@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateBookStatus } from '@/lib/actions';
+import { isStatusAtCapacity, statusLimitErrorMessage } from '@/lib/book-limits';
 import { BookStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
@@ -10,6 +11,8 @@ import { Check } from 'lucide-react';
 interface Props {
   bookId: string;
   currentStatus: BookStatus;
+  deskCount: number;
+  bagCount: number;
   onChange?: (status: BookStatus) => void;
 }
 
@@ -23,42 +26,65 @@ function statusToStep(status: BookStatus): Step {
 
 const STEP_LABELS = ['책장 속', '읽는 중', '완독 완료'];
 
-export function StatusChanger({ bookId, currentStatus, onChange }: Props) {
+export function StatusChanger({
+  bookId,
+  currentStatus,
+  deskCount,
+  bagCount,
+  onChange,
+}: Props) {
   const router = useRouter();
   const [status, setStatus] = useState(currentStatus);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     setStatus(currentStatus);
   }, [currentStatus]);
 
   const step = statusToStep(status);
+  const deskFull = isStatusAtCapacity('책상위', deskCount, status);
+  const bagFull = isStatusAtCapacity('가방안', bagCount, status);
 
   const change = async (next: BookStatus) => {
     if (next === status || pending) return;
+    if (isStatusAtCapacity(next, next === '책상위' ? deskCount : bagCount, status)) {
+      setError(statusLimitErrorMessage(next));
+      return;
+    }
     setPending(true);
+    setError('');
     try {
       await updateBookStatus(bookId, next);
       setStatus(next);
       onChange?.(next);
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '상태 변경에 실패했습니다.');
     } finally {
       setPending(false);
     }
   };
 
   const goToStep = (s: Step) => {
-    if (s === 0) change('책장속');
-    else if (s === 1) change(status === '가방안' ? '가방안' : '책상위');
-    else change('완독완료');
+    if (s === 0) {
+      change('책장속');
+      return;
+    }
+    if (s === 2) {
+      change('완독완료');
+      return;
+    }
+    if (status === '책상위' || status === '가방안') return;
+    if (!deskFull) change('책상위');
+    else if (!bagFull) change('가방안');
+    else setError('책상과 가방이 모두 가득 찼어요.');
   };
 
   return (
     <div>
-      {/* Progress bar */}
       <div className="mx-auto w-full max-w-xs px-1">
         <div className="relative flex justify-between">
-          {/* 연결선 — 원 중심 높이에 배치 */}
           <div
             className="pointer-events-none absolute left-[14px] right-[14px] top-[14px] h-[2px] -translate-y-1/2 bg-gray-200"
             aria-hidden
@@ -73,7 +99,7 @@ export function StatusChanger({ bookId, currentStatus, onChange }: Props) {
             <button
               key={label}
               onClick={() => goToStep(i as Step)}
-              disabled={pending}
+              disabled={pending || (i === 1 && step !== 1 && deskFull && bagFull)}
               className="relative z-10 flex w-14 flex-col items-center gap-1.5 disabled:cursor-not-allowed"
             >
               <div
@@ -110,44 +136,48 @@ export function StatusChanger({ bookId, currentStatus, onChange }: Props) {
         </div>
       </div>
 
-      {/* Sub-state toggle when reading */}
       {step === 1 && (
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => change('책상위')}
-            disabled={pending}
+            disabled={pending || (deskFull && status !== '책상위') || status === '책상위'}
             className={cn(
-              'flex-1 rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-50',
+              'flex-1 rounded-lg py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
               status === '책상위'
                 ? 'bg-blue-100 text-blue-700'
                 : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             )}
           >
             📚 책상 위
+            <span className="mt-0.5 block text-[10px] font-normal opacity-70">
+              {deskCount}/3
+            </span>
           </button>
           <button
             onClick={() => change('가방안')}
-            disabled={pending}
+            disabled={pending || (bagFull && status !== '가방안') || status === '가방안'}
             className={cn(
-              'flex-1 rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-50',
+              'flex-1 rounded-lg py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
               status === '가방안'
                 ? 'bg-green-100 text-green-700'
                 : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             )}
           >
             🎒 가방 안
+            <span className="mt-0.5 block text-[10px] font-normal opacity-70">
+              {bagCount}/2
+            </span>
           </button>
         </div>
       )}
 
-      {/* Main action button */}
       {step === 0 && (
         <button
           onClick={() => change('책상위')}
-          disabled={pending}
-          className="mt-4 w-full rounded-xl bg-gray-900 py-2.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 transition-colors"
+          disabled={pending || deskFull}
+          className="mt-4 w-full rounded-xl bg-gray-900 py-2.5 text-sm font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
         >
-          읽기 시작 →
+          {deskFull ? '책상이 가득 찼어요 (3/3)' : '읽기 시작 →'}
         </button>
       )}
       {step === 1 && (
@@ -159,6 +189,8 @@ export function StatusChanger({ bookId, currentStatus, onChange }: Props) {
           완독 완료 →
         </button>
       )}
+
+      {error && <p className="mt-3 text-center text-xs text-red-500">{error}</p>}
     </div>
   );
 }

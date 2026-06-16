@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from './supabase/server';
+import { assertStatusCapacity } from './book-limits';
 import { BookStatus } from './types';
 import { isMissingQuoteColumnError, toLegacyNoteContent } from './utils';
 
@@ -61,6 +62,9 @@ export async function deleteNote(noteId: string, bookId: string) {
 
 export async function updateBookStatus(bookId: string, status: BookStatus) {
   const supabase = await createClient();
+  if (status === '책상위' || status === '가방안') {
+    await assertStatusCapacity(supabase, status, bookId);
+  }
   const updates: Record<string, unknown> = { status };
   if (status === '책상위' || status === '가방안') {
     updates.started_at = new Date().toISOString().split('T')[0];
@@ -91,13 +95,16 @@ export async function createBook(data: {
   title: string;
   author: string;
   category: string;
-  status: BookStatus;
   cover_image?: string;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('로그인이 필요합니다.');
-  const { error } = await supabase.from('books').insert({ ...data, user_id: user.id });
+  const { error } = await supabase.from('books').insert({
+    ...data,
+    status: '책장속',
+    user_id: user.id,
+  });
   if (error) throw new Error(error.message);
   revalidatePath('/');
   revalidatePath('/admin');
@@ -115,6 +122,9 @@ export async function updateBook(
   }
 ) {
   const supabase = await createClient();
+  if (data.status === '책상위' || data.status === '가방안') {
+    await assertStatusCapacity(supabase, data.status, bookId);
+  }
   const { error } = await supabase.from('books').update(data).eq('id', bookId);
   if (error) throw new Error(error.message);
   revalidatePath('/');

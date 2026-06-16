@@ -10,9 +10,11 @@ import { StatusChanger } from './StatusChanger';
 interface Props {
   bookId: string;
   initialStatus: BookStatus;
+  deskCount: number;
+  bagCount: number;
 }
 
-export function BookStatusControl({ bookId, initialStatus }: Props) {
+export function BookStatusControl({ bookId, initialStatus, deskCount, bagCount }: Props) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState(initialStatus);
 
@@ -36,6 +38,8 @@ export function BookStatusControl({ bookId, initialStatus }: Props) {
         <StatusChanger
           bookId={bookId}
           currentStatus={status}
+          deskCount={deskCount}
+          bagCount={bagCount}
           onChange={(next) => {
             setStatus(next);
             setOpen(false);

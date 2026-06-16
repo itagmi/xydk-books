@@ -47,14 +47,23 @@ export default async function BookDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: book }, { data: notes }] = await Promise.all([
-    supabase.from('books').select('*').eq('id', id).single(),
-    supabase
-      .from('notes')
-      .select('*')
-      .eq('book_id', id)
-      .order('page', { ascending: true }),
-  ]);
+  const [{ data: book }, { data: notes }, { count: deskCount }, { count: bagCount }] =
+    await Promise.all([
+      supabase.from('books').select('*').eq('id', id).single(),
+      supabase
+        .from('notes')
+        .select('*')
+        .eq('book_id', id)
+        .order('page', { ascending: true }),
+      supabase
+        .from('books')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', '책상위'),
+      supabase
+        .from('books')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', '가방안'),
+    ]);
 
   if (!book) notFound();
 
@@ -101,6 +110,8 @@ export default async function BookDetailPage({ params }: Props) {
           <BookStatusControl
             bookId={book.id}
             initialStatus={book.status as BookStatus}
+            deskCount={deskCount ?? 0}
+            bagCount={bagCount ?? 0}
           />
           {book.rating != null && (
             <p className="mt-1.5 text-sm text-yellow-400">
@@ -114,6 +125,8 @@ export default async function BookDetailPage({ params }: Props) {
       {(isReading || isFinished) && (
         <NotesSection
           bookId={book.id}
+          bookTitle={book.title}
+          bookAuthor={book.author}
           notes={(notes ?? []) as Note[]}
         />
       )}

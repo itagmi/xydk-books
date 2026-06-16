@@ -3,16 +3,17 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Note } from '@/lib/types';
-import { Modal } from '@/components/Modal';
-import { NoteForm } from './NoteForm';
+import { GinkgoMemoModal } from '@/components/GinkgoMemoModal';
 import { NoteItem } from './NoteItem';
 
 interface Props {
   bookId: string;
+  bookTitle: string;
+  bookAuthor: string;
   notes: Note[];
 }
 
-export function NotesSection({ bookId, notes }: Props) {
+export function NotesSection({ bookId, bookTitle, bookAuthor, notes }: Props) {
   const [adding, setAdding] = useState(false);
 
   return (
@@ -28,7 +29,7 @@ export function NotesSection({ bookId, notes }: Props) {
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             aria-label="메모 추가"
           >
             <Plus className="h-5 w-5" />
@@ -48,9 +49,10 @@ export function NotesSection({ bookId, notes }: Props) {
         )}
       </div>
 
-      <Modal open={adding} onClose={() => setAdding(false)} title="메모 추가">
-        <NoteForm bookId={bookId} onSuccess={() => setAdding(false)} inModal />
-      </Modal>
+      <GinkgoMemoModal
+        book={adding ? { id: bookId, title: bookTitle, author: bookAuthor } : null}
+        onClose={() => setAdding(false)}
+      />
     </>
   );
 }

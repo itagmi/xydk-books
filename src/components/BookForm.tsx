@@ -114,13 +114,18 @@ export function BookForm({ book, onDone }: Props) {
         title: form.title.trim(),
         author: form.author.trim(),
         category: form.category.trim(),
-        status: form.status,
+        ...(book ? { status: form.status } : { status: '책장속' as BookStatus }),
         ...(form.cover_image.trim() ? { cover_image: form.cover_image.trim() } : {}),
       };
       if (book) {
         await updateBook(book.id, data);
       } else {
-        await createBook(data);
+        await createBook({
+          title: data.title,
+          author: data.author,
+          category: data.category,
+          ...(data.cover_image ? { cover_image: data.cover_image } : {}),
+        });
       }
       onDone();
     } catch (err) {
@@ -230,41 +235,36 @@ export function BookForm({ book, onDone }: Props) {
           placeholder="소설, 에세이, 자기계발 등"
         />
       </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-gray-600">
-          상태
-        </label>
-        <select
-          className={inputCls}
-          value={form.status}
-          onChange={set('status')}
-        >
-          {ALL_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {STATUS_LABELS[s]}
-            </option>
-          ))}
-        </select>
-      </div>
+      {book ? (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-600">
+            상태
+          </label>
+          <select
+            className={inputCls}
+            value={form.status}
+            onChange={set('status')}
+          >
+            {ALL_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400">책장에 추가됩니다. 읽기 시작은 책장에서 선택하세요.</p>
+      )}
 
       {error && <p className="text-xs text-red-500">{error}</p>}
 
-      <div className="flex gap-2 pt-1">
-        <button
-          type="submit"
-          disabled={pending}
-          className="flex-1 rounded-lg bg-gray-900 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 transition-colors"
-        >
-          {pending ? '저장 중...' : book ? '수정' : '추가'}
-        </button>
-        <button
-          type="button"
-          onClick={onDone}
-          className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-        >
-          취소
-        </button>
-      </div>
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full rounded-lg bg-gray-900 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 transition-colors"
+      >
+        {pending ? '저장 중...' : book ? '수정' : '추가'}
+      </button>
     </form>
   );
 }

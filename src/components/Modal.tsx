@@ -6,7 +6,7 @@ import { X } from 'lucide-react';
 interface Props {
   open: boolean;
   onClose: () => void;
-  title: string;
+  title: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -40,10 +40,10 @@ export function Modal({ open, onClose, title, children }: Props) {
         aria-labelledby="modal-title"
         className="relative z-10 flex w-full max-w-lg max-h-[90vh] flex-col overflow-hidden rounded-2xl bg-white p-5 shadow-xl"
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 id="modal-title" className="font-semibold text-gray-900">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div id="modal-title" role="heading" aria-level={2} className="min-w-0 flex-1 font-semibold text-gray-900">
             {title}
-          </h2>
+          </div>
           <button
             type="button"
             onClick={onClose}
