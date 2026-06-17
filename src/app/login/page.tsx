@@ -31,7 +31,7 @@ export default function LoginPage() {
   };
 
   const inputCls =
-    'w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300';
+    'w-full rounded-xl border border-gray-200 px-4 py-3 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-gray-300';
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
