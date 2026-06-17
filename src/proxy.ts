@@ -37,6 +37,7 @@ export async function proxy(request: NextRequest) {
     path.startsWith('/login') ||
     path.startsWith('/signup') ||
     path.startsWith('/auth/callback') ||
+    path.startsWith('/welcome') ||
     path.startsWith('/api/books/public');
 
   if (!user && !isPublic && !crawler) {
