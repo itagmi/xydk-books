@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 type DoneReason = 'new' | 'existing';
@@ -15,12 +16,17 @@ export default function SignupPage() {
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState<DoneReason | null>(null);
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
   const [countdown, setCountdown] = useState(0);
+
+  const passwordMismatch = confirm.length > 0 && password !== confirm;
+  const passwordMatch = confirm.length > 0 && password === confirm;
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -123,7 +129,6 @@ export default function SignupPage() {
                   <p className="mt-2 text-sm text-gray-400">
                     {email}로 인증 링크를 보냈습니다.
                   </p>
-
                   <button
                     type="button"
                     onClick={handleResend}
@@ -136,7 +141,6 @@ export default function SignupPage() {
                         ? `${countdown}초 후 재전송 가능`
                         : '인증 이메일 다시 보내기'}
                   </button>
-
                   {resendMsg && (
                     <p className="mt-2 text-xs text-gray-400">{resendMsg}</p>
                   )}
@@ -169,24 +173,56 @@ export default function SignupPage() {
                 autoComplete="nickname"
                 className={inputCls}
               />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="비밀번호 (6자 이상)"
-                required
-                autoComplete="new-password"
-                className={inputCls}
-              />
-              <input
-                type="password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                placeholder="비밀번호 확인"
-                required
-                autoComplete="new-password"
-                className={inputCls}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="비밀번호 (6자 이상)"
+                  required
+                  autoComplete="new-password"
+                  className={`${inputCls} pr-11`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  placeholder="비밀번호 확인"
+                  required
+                  autoComplete="new-password"
+                  className={`${inputCls} pr-11 ${
+                    passwordMismatch
+                      ? 'border-red-300 focus:ring-red-200'
+                      : passwordMatch
+                        ? 'border-green-300 focus:ring-green-200'
+                        : ''
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  tabIndex={-1}
+                >
+                  {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {passwordMismatch && (
+                <p className="text-xs text-red-500">비밀번호가 일치하지 않습니다.</p>
+              )}
+              {passwordMatch && (
+                <p className="text-xs text-green-500">비밀번호가 일치합니다.</p>
+              )}
               {error && <p className="text-xs text-red-500">{error}</p>}
               <button
                 type="submit"
