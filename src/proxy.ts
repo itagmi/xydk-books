@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
   const isPublic =
     path.startsWith('/login') ||
     path.startsWith('/signup') ||
-    path.startsWith('/auth/callback') ||
+    path.startsWith('/auth/') ||
     path.startsWith('/welcome') ||
     path.startsWith('/api/books/public');
 
