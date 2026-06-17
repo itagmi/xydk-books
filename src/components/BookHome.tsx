@@ -480,6 +480,8 @@ export function BookHome({ books, error }: Props) {
   const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [memoBook, setMemoBook] = useState<BookListItem | null>(null);
   const [nickname, setNickname] = useState('');
+  const [showGuide, setShowGuide] = useState(false);
+  const [guideDontShow, setGuideDontShow] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -487,6 +489,18 @@ export function BookHome({ books, error }: Props) {
       setNickname(data.user?.user_metadata?.nickname ?? '');
     });
   }, []);
+
+  useEffect(() => {
+    if (!localStorage.getItem('ginkgo_guide_seen')) {
+      setShowGuide(true);
+    }
+  }, []);
+
+  const dismissGuide = (openAdd = false) => {
+    if (guideDontShow) localStorage.setItem('ginkgo_guide_seen', '1');
+    setShowGuide(false);
+    if (openAdd) setAdding(true);
+  };
 
   useEffect(() => {
     if (!deleteSuccess) return;
@@ -550,31 +564,11 @@ export function BookHome({ books, error }: Props) {
     .filter(Boolean)
     .join(' · ');
 
-  const emptyReading =
-    books.length === 0 ? (
-      <div className="flex flex-col items-center justify-center gap-5 px-4 py-8 text-center">
-        <EmptyDeskGuideIllustration />
-        <div className="space-y-2">
-          <p className="text-sm leading-relaxed text-amber-950/85">
-            Ginkgo는 읽는 책을 책상·가방·책장에 두고
-            <br />
-            메모와 독후감까지 남기는 독서 기록 앱이에요.
-          </p>
-          <p className="text-xs leading-relaxed text-amber-900/55">
-            오른쪽 위 <span className="font-medium text-amber-900/70">+</span> 버튼으로
-            책을 추가한 뒤, 책상 위에 올리면 읽기가 시작돼요.
-          </p>
-        </div>
-        <p className="text-sm font-medium text-amber-900/75">
-          첫 책을 책상위에 올려 보세요
-        </p>
-      </div>
-    ) : (
-      <div className="flex flex-col items-center justify-center py-10">
-        <img src="/logo.svg" alt="" className="mb-2 h-8 w-auto opacity-20" />
-        <p className="text-sm text-amber-900/50">읽고 있는 책이 없어요</p>
-      </div>
-    );
+  const emptySlot = (msg: string) => (
+    <div className="flex items-center justify-center py-8">
+      <p className="text-sm text-amber-900/35">{msg}</p>
+    </div>
+  );
 
   return (
     <div>
@@ -612,61 +606,62 @@ export function BookHome({ books, error }: Props) {
         <p className="mb-4 text-sm text-red-500">데이터를 불러오지 못했습니다.</p>
       )}
 
-      {/* 지금 읽는 중 — 가방 / 책상 */}
-      {reading > 0 ? (
-        <>
-          {inBag.length > 0 && (
-            <LocationScene status="가방안" count={inBag.length} limit={STATUS_LIMITS.가방안}>
-              <div className="relative z-[1] space-y-3">
-                {inBag.map((book) => (
-                  <ReadingCard
-                    key={book.id}
-                    book={book}
-                    variant="bag"
-                    deskCount={onDesk.length}
-                    bagCount={inBag.length}
-                    deleting={deleting === book.id}
-                    onDelete={() => requestDelete(book.id, book.title)}
-                    onMemo={() => setMemoBook(book)}
-                    onRequestFinish={() => requestFinish(book.id, book.title)}
-                  />
-                ))}
-              </div>
-            </LocationScene>
-          )}
-          {onDesk.length > 0 && (
-            <LocationScene status="책상위" count={onDesk.length} limit={STATUS_LIMITS.책상위}>
-              <div className="relative z-[1] space-y-3">
-                {onDesk.map((book) => (
-                  <ReadingCard
-                    key={book.id}
-                    book={book}
-                    variant="desk"
-                    deskCount={onDesk.length}
-                    bagCount={inBag.length}
-                    deleting={deleting === book.id}
-                    onDelete={() => requestDelete(book.id, book.title)}
-                    onMemo={() => setMemoBook(book)}
-                    onRequestFinish={() => requestFinish(book.id, book.title)}
-                  />
-                ))}
-              </div>
-            </LocationScene>
-          )}
-        </>
-      ) : (
-        <section className="mb-8">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            지금 읽는 중
-          </h2>
-          <LocationScene status="책상위" empty={emptyReading} />
-        </section>
-      )}
+      {/* 책상 위 */}
+      <LocationScene
+        status="책상위"
+        count={onDesk.length}
+        limit={onDesk.length > 0 ? STATUS_LIMITS.책상위 : undefined}
+        empty={onDesk.length === 0 ? emptySlot('비어있어요') : undefined}
+      >
+        <div className="relative z-[1] space-y-3">
+          {onDesk.map((book) => (
+            <ReadingCard
+              key={book.id}
+              book={book}
+              variant="desk"
+              deskCount={onDesk.length}
+              bagCount={inBag.length}
+              deleting={deleting === book.id}
+              onDelete={() => requestDelete(book.id, book.title)}
+              onMemo={() => setMemoBook(book)}
+              onRequestFinish={() => requestFinish(book.id, book.title)}
+            />
+          ))}
+        </div>
+      </LocationScene>
+
+      {/* 가방 안 */}
+      <LocationScene
+        status="가방안"
+        count={inBag.length}
+        limit={inBag.length > 0 ? STATUS_LIMITS.가방안 : undefined}
+        empty={inBag.length === 0 ? emptySlot('비어있어요') : undefined}
+      >
+        <div className="relative z-[1] space-y-3">
+          {inBag.map((book) => (
+            <ReadingCard
+              key={book.id}
+              book={book}
+              variant="bag"
+              deskCount={onDesk.length}
+              bagCount={inBag.length}
+              deleting={deleting === book.id}
+              onDelete={() => requestDelete(book.id, book.title)}
+              onMemo={() => setMemoBook(book)}
+              onRequestFinish={() => requestFinish(book.id, book.title)}
+            />
+          ))}
+        </div>
+      </LocationScene>
 
       {/* 책장 속 — 읽기 전 / 완독 */}
-      {shelfTotal > 0 && (
-        <LocationScene status="책장속" count={shelfTotal} detail={shelfDetail}>
-          <div className="relative z-[1]">
+      <LocationScene
+        status="책장속"
+        count={shelfTotal > 0 ? shelfTotal : undefined}
+        detail={shelfDetail}
+        empty={shelfTotal === 0 ? emptySlot('비어있어요') : undefined}
+      >
+        <div className="relative z-[1]">
             <ShelfZone label="읽기 전" count={unread.length}>
               {unreadRows.map((row, i) => (
                 <ShelfBoard
@@ -696,7 +691,49 @@ export function BookHome({ books, error }: Props) {
             </ShelfZone>
           </div>
         </LocationScene>
-      )}
+
+      {/* 온보딩 가이드 */}
+      <Modal open={showGuide} onClose={() => dismissGuide()} title="">
+        <div className="flex flex-col items-center gap-5 px-2 pb-2 pt-1 text-center">
+          <EmptyDeskGuideIllustration />
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium text-gray-800">
+              Ginkgo에 오신 걸 환영해요
+            </p>
+            <p className="text-sm leading-relaxed text-gray-500">
+              읽는 책을 책상·가방·책장에 두고<br />
+              메모와 독후감까지 남기는 독서 기록 앱이에요.
+            </p>
+            <p className="text-xs leading-relaxed text-gray-400">
+              오른쪽 위 <span className="font-medium text-gray-600">+</span> 버튼으로 책을 추가한 뒤,<br />
+              책상 위에 올리면 읽기가 시작돼요.
+            </p>
+          </div>
+          <div className="flex w-full flex-col gap-2">
+            <button
+              onClick={() => dismissGuide(true)}
+              className="w-full rounded-xl bg-gray-900 py-3 text-sm font-medium text-white hover:bg-gray-700 transition-colors"
+            >
+              + 첫 책 추가하기
+            </button>
+            <button
+              onClick={() => dismissGuide()}
+              className="w-full rounded-xl border border-gray-200 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+            >
+              닫기
+            </button>
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-gray-400">
+            <input
+              type="checkbox"
+              checked={guideDontShow}
+              onChange={(e) => setGuideDontShow(e.target.checked)}
+              className="h-3.5 w-3.5 accent-gray-700"
+            />
+            다시 보지 않기
+          </label>
+        </div>
+      </Modal>
 
       <Modal open={adding} onClose={() => setAdding(false)} title="새 책 추가">
         <BookForm onDone={() => setAdding(false)} />
