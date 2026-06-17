@@ -6,6 +6,16 @@ import { assertStatusCapacity, canFinishReading, finishReadingErrorMessage } fro
 import { BookStatus } from './types';
 import { isMissingQuoteColumnError, toLegacyNoteContent } from './utils';
 
+function revalidateBlog() {
+  const url = process.env.BLOG_REVALIDATE_URL;
+  const secret = process.env.BLOG_REVALIDATE_SECRET;
+  if (!url || !secret) return;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'x-revalidate-secret': secret },
+  }).catch(() => {});
+}
+
 export async function addNote(
   bookId: string,
   page: number,
@@ -90,6 +100,7 @@ export async function updateBookStatus(bookId: string, status: BookStatus) {
   if (error) throw new Error(error.message);
   revalidatePath(`/books/${bookId}`);
   revalidatePath('/');
+  revalidateBlog();
 }
 
 export async function saveReview(bookId: string, review: string, rating?: number) {
@@ -118,6 +129,7 @@ export async function createBook(data: {
   });
   if (error) throw new Error(error.message);
   revalidatePath('/');
+  revalidateBlog();
 }
 
 export async function updateBook(
@@ -139,6 +151,7 @@ export async function updateBook(
   if (error) throw new Error(error.message);
   revalidatePath('/');
   revalidatePath(`/books/${bookId}`);
+  revalidateBlog();
 }
 
 export async function deleteBook(bookId: string) {
@@ -146,4 +159,5 @@ export async function deleteBook(bookId: string) {
   const { error } = await supabase.from('books').delete().eq('id', bookId);
   if (error) throw new Error(error.message);
   revalidatePath('/');
+  revalidateBlog();
 }
