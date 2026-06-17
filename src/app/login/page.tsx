@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const confirmed = searchParams.get('error') === 'auth_error';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -45,6 +47,12 @@ export default function LoginPage() {
           <h1 className="text-xl font-light tracking-widest text-gray-800">GINKGO</h1>
           <p className="mt-1 text-sm text-gray-400">나의 독서 여정</p>
         </div>
+
+        {confirmed && (
+          <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-center text-sm text-green-700">
+            이메일 인증이 완료됐어요.<br />로그인해주세요.
+          </div>
+        )}
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-3">
