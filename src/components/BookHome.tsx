@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Plus, MoreHorizontal, LogOut, StickyNote } from 'lucide-react';
+import { Plus, MoreHorizontal, LogOut, StickyNote, LayoutDashboard } from 'lucide-react';
 import { deleteBook, updateBookStatus } from '@/lib/actions';
 import { createClient } from '@/lib/supabase/client';
 import { Book, type BookStatus } from '@/lib/types';
@@ -29,6 +29,7 @@ type SceneVariant = 'desk' | 'bag';
 interface Props {
   books: BookListItem[];
   error: boolean;
+  isAdmin?: boolean;
 }
 
 function CoverPlaceholder({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
@@ -470,7 +471,7 @@ function chunkBooks<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
-export function BookHome({ books, error }: Props) {
+export function BookHome({ books, error, isAdmin }: Props) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -583,6 +584,15 @@ export function BookHome({ books, error }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              aria-label="관리자 대시보드"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => setAdding(true)}
