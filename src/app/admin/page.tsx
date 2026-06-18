@@ -2,10 +2,11 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { PageSizeSelect } from './PageSizeSelect';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'itagmi88@gmail.com';
 const PAGE_SIZES = [5, 10, 15, 20] as const;
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 5;
 
 function isoToDate(iso: string) {
   return iso.slice(0, 10);
@@ -121,21 +122,7 @@ export default async function AdminPage({
             전체 가입자 목록
             <span className="ml-2 text-xs font-normal text-gray-400">{totalUsers}명</span>
           </h2>
-          <div className="flex items-center gap-1">
-            {PAGE_SIZES.map(s => (
-              <Link
-                key={s}
-                href={`?page=1&size=${s}`}
-                className={`inline-flex h-7 w-8 items-center justify-center rounded-lg text-xs transition-colors ${
-                  s === pageSize
-                    ? 'bg-gray-900 font-medium text-white'
-                    : 'text-gray-500 hover:bg-gray-100'
-                }`}
-              >
-                {s}
-              </Link>
-            ))}
-          </div>
+          <PageSizeSelect sizes={PAGE_SIZES} current={pageSize} />
         </div>
 
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
