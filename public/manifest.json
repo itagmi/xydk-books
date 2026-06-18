@@ -1,6 +1,6 @@
 {
-  "name": "내 독서 기록",
-  "short_name": "독서",
+  "name": "Ginkgo — 나의 독서 여정",
+  "short_name": "Ginkgo",
   "description": "책 읽기 상태와 메모를 기록하는 앱",
   "start_url": "/",
   "display": "standalone",
