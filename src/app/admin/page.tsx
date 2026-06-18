@@ -4,7 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'itagmi88@gmail.com';
-const PAGE_SIZE = 20;
+const PAGE_SIZES = [5, 10, 15, 20] as const;
+const DEFAULT_PAGE_SIZE = 20;
 
 function isoToDate(iso: string) {
   return iso.slice(0, 10);
@@ -29,7 +30,7 @@ function formatDate(iso: string | null | undefined) {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; size?: string }>;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -69,11 +70,14 @@ export default async function AdminPage({
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
 
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, size: sizeParam } = await searchParams;
+  const pageSize = PAGE_SIZES.includes(Number(sizeParam) as typeof PAGE_SIZES[number])
+    ? Number(sizeParam)
+    : DEFAULT_PAGE_SIZE;
   const page = Math.max(1, parseInt(pageParam ?? '1', 10) || 1);
-  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const totalPages = Math.ceil(sorted.length / pageSize);
   const clampedPage = Math.min(page, Math.max(1, totalPages));
-  const pageUsers = sorted.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE);
+  const pageUsers = sorted.slice((clampedPage - 1) * pageSize, clampedPage * pageSize);
 
   return (
     <div className="space-y-8">
@@ -112,14 +116,26 @@ export default async function AdminPage({
 
       {/* 전체 가입자 목록 */}
       <section>
-        <div className="mb-3 flex items-baseline justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-semibold text-gray-700">
             전체 가입자 목록
             <span className="ml-2 text-xs font-normal text-gray-400">{totalUsers}명</span>
           </h2>
-          {totalPages > 1 && (
-            <span className="text-xs text-gray-400">{clampedPage} / {totalPages} 페이지</span>
-          )}
+          <div className="flex items-center gap-1">
+            {PAGE_SIZES.map(s => (
+              <Link
+                key={s}
+                href={`?page=1&size=${s}`}
+                className={`inline-flex h-7 w-8 items-center justify-center rounded-lg text-xs transition-colors ${
+                  s === pageSize
+                    ? 'bg-gray-900 font-medium text-white'
+                    : 'text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                {s}
+              </Link>
+            ))}
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -154,11 +170,11 @@ export default async function AdminPage({
         {/* 페이지네이션 */}
         {totalPages > 1 && (
           <div className="mt-4 flex items-center justify-center gap-1">
-            <PaginationLink page={clampedPage - 1} disabled={clampedPage <= 1} label="‹ 이전" />
+            <PaginationLink page={clampedPage - 1} size={pageSize} disabled={clampedPage <= 1} label="‹ 이전" />
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <PaginationLink key={p} page={p} active={p === clampedPage} label={String(p)} />
+              <PaginationLink key={p} page={p} size={pageSize} active={p === clampedPage} label={String(p)} />
             ))}
-            <PaginationLink page={clampedPage + 1} disabled={clampedPage >= totalPages} label="다음 ›" />
+            <PaginationLink page={clampedPage + 1} size={pageSize} disabled={clampedPage >= totalPages} label="다음 ›" />
           </div>
         )}
       </section>
@@ -178,11 +194,13 @@ function StatCard({ label, value, sub }: { label: string; value: number; sub?: s
 
 function PaginationLink({
   page,
+  size,
   label,
   active,
   disabled,
 }: {
   page: number;
+  size: number;
   label: string;
   active?: boolean;
   disabled?: boolean;
@@ -193,7 +211,7 @@ function PaginationLink({
   }
   return (
     <Link
-      href={`?page=${page}`}
+      href={`?page=${page}&size=${size}`}
       className={`${base} ${active ? 'bg-gray-900 font-medium text-white' : 'text-gray-600 hover:bg-gray-100'}`}
     >
       {label}
