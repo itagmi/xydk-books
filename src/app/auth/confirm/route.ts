@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) {
-      const response = NextResponse.redirect(`${origin}/welcome`);
+      const response = NextResponse.redirect(`${origin}/`);
       pendingCookies.forEach(({ name, value, options }) => {
         response.cookies.set(name, value, options);
       });
