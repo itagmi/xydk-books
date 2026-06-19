@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { addNote } from '@/lib/actions';
@@ -21,7 +21,6 @@ const inputCls =
 
 export function GinkgoMemoModal({ book, onClose }: Props) {
   const router = useRouter();
-  const reflectionRef = useRef<HTMLTextAreaElement>(null);
   const [page, setPage] = useState('');
   const [quote, setQuote] = useState('');
   const [reflection, setReflection] = useState('');
@@ -34,7 +33,6 @@ export function GinkgoMemoModal({ book, onClose }: Props) {
     };
     document.addEventListener('keydown', onKeyDown);
     document.body.style.overflow = 'hidden';
-    reflectionRef.current?.focus();
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = '';
@@ -141,7 +139,6 @@ export function GinkgoMemoModal({ book, onClose }: Props) {
             <div>
               <label className="mb-1 block text-xs font-medium text-amber-900/70">느낀점</label>
               <textarea
-                ref={reflectionRef}
                 placeholder="지금 든 생각을 적어보세요"
                 value={reflection}
                 onChange={(e) => setReflection(e.target.value)}
