@@ -2,16 +2,16 @@
 
 import { useEffect, useLayoutEffect, useRef, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { LogOut, UserRound } from 'lucide-react';
+import Link from 'next/link';
+import { LogOut, UserRound, ChevronRight } from 'lucide-react';
 
 interface Props {
   nickname: string;
   email: string;
   onLogout: () => void;
-  onWithdraw: () => void;
 }
 
-export function UserMenuDropdown({ nickname, email, onLogout, onWithdraw }: Props) {
+export function UserMenuDropdown({ nickname, email, onLogout }: Props) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{ top: number; left: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -71,30 +71,31 @@ export function UserMenuDropdown({ nickname, email, onLogout, onWithdraw }: Prop
       className="fixed z-50 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg"
       style={menuStyle ? { top: menuStyle.top, left: menuStyle.left } : { visibility: 'hidden', top: 0, left: 0 }}
     >
-      {/* 프로필 정보 */}
+      {/* 프로필 요약 */}
       <div className="px-4 py-3 border-b border-gray-100">
         {nickname && <p className="text-sm font-medium text-gray-800">{nickname}</p>}
         {email && <p className="mt-0.5 text-xs text-gray-400 truncate">{email}</p>}
       </div>
 
-      {/* 로그아웃 */}
-      <button
-        type="button"
-        onClick={() => { setOpen(false); onLogout(); }}
-        className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+      {/* 내 정보 */}
+      <Link
+        href="/account"
+        onClick={() => setOpen(false)}
+        className="flex w-full items-center justify-between px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
       >
-        <LogOut className="h-4 w-4 text-gray-400" />
-        로그아웃
-      </button>
+        내 정보
+        <ChevronRight className="h-4 w-4 text-gray-300" />
+      </Link>
 
-      {/* 계정 탈퇴 */}
-      <div className="border-t border-gray-100 px-4 py-2.5">
+      {/* 로그아웃 */}
+      <div className="border-t border-gray-100">
         <button
           type="button"
-          onClick={() => { setOpen(false); onWithdraw(); }}
-          className="cursor-pointer text-xs text-gray-300 hover:text-red-400 transition-colors"
+          onClick={() => { setOpen(false); onLogout(); }}
+          className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
         >
-          계정 탈퇴
+          <LogOut className="h-4 w-4 text-gray-400" />
+          로그아웃
         </button>
       </div>
     </div>

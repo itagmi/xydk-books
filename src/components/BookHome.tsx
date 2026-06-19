@@ -484,9 +484,6 @@ export function BookHome({ books, error, isAdmin }: Props) {
   const [nickname, setNickname] = useState('');
   const [showGuide, setShowGuide] = useState(false);
   const [guideDontShow, setGuideDontShow] = useState(false);
-  const [showWithdraw, setShowWithdraw] = useState(false);
-  const [withdrawPending, setWithdrawPending] = useState(false);
-  const [withdrawError, setWithdrawError] = useState('');
   const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
@@ -521,18 +518,6 @@ export function BookHome({ books, error, isAdmin }: Props) {
     window.location.href = '/login';
   };
 
-  const handleWithdraw = async () => {
-    setWithdrawPending(true);
-    setWithdrawError('');
-    const res = await fetch('/api/withdraw', { method: 'POST' });
-    if (res.ok) {
-      window.location.href = '/login?withdrawn=1';
-    } else {
-      const { error } = await res.json();
-      setWithdrawError(error ?? '오류가 발생했습니다. 다시 시도해주세요.');
-      setWithdrawPending(false);
-    }
-  };
 
   const requestDelete = (id: string, title: string) => {
     setDeleteTarget({ id, title });
@@ -624,7 +609,6 @@ export function BookHome({ books, error, isAdmin }: Props) {
             nickname={nickname}
             email={userEmail}
             onLogout={handleLogout}
-            onWithdraw={() => { setWithdrawError(''); setShowWithdraw(true); }}
           />
         </div>
       </header>
@@ -807,39 +791,6 @@ export function BookHome({ books, error, isAdmin }: Props) {
       />
 
       <GinkgoMemoModal book={memoBook} onClose={() => setMemoBook(null)} />
-
-      {/* 탈퇴 확인 모달 */}
-      <Modal open={showWithdraw} onClose={() => !withdrawPending && setShowWithdraw(false)} title="계정 탈퇴">
-        <div className="space-y-4">
-          <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 space-y-1">
-            <p className="font-medium">탈퇴 전 확인해주세요</p>
-            <ul className="list-disc pl-4 space-y-0.5 text-red-600">
-              <li>책·메모 데이터는 삭제되지 않고 보존됩니다</li>
-              <li>같은 이메일로 새로 가입할 수 있지만, 이전 데이터와 연결되지 않습니다</li>
-              <li>탈퇴 후 로그인할 수 없습니다</li>
-            </ul>
-          </div>
-          {withdrawError && <p className="text-xs text-red-500">{withdrawError}</p>}
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowWithdraw(false)}
-              disabled={withdrawPending}
-              className="cursor-pointer rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={handleWithdraw}
-              disabled={withdrawPending}
-              className="cursor-pointer rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
-            >
-              {withdrawPending ? '처리 중...' : '탈퇴하기'}
-            </button>
-          </div>
-        </div>
-      </Modal>
 
       {deleteSuccess && (
         <div
