@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      const redirectTo = next;
+      const redirectTo = next === '/' ? '/welcome' : next;
       const response = NextResponse.redirect(`${origin}${redirectTo}`);
       pendingCookies.forEach(({ name, value, options }) => {
         response.cookies.set(name, value, options);

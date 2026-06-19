@@ -17,7 +17,7 @@ export function WithdrawButton() {
       setShowModal(false);
       setShowToast(true);
       setTimeout(() => {
-        window.location.href = '/login?withdrawn=1';
+        window.location.href = '/login';
       }, 2000);
     } else {
       const { error: msg } = await res.json();

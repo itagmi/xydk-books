@@ -9,22 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 function StatusBanner() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
-  const withdrawn = searchParams.get('withdrawn');
 
-  if (withdrawn === '1') {
-    return (
-      <div className="mb-4 rounded-xl bg-gray-50 px-4 py-3 text-center text-sm text-gray-600">
-        계정 탈퇴가 완료됐습니다.<br />같은 이메일로 새로 가입할 수 있어요.
-      </div>
-    );
-  }
-  if (error === 'deleted') {
-    return (
-      <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-center text-sm text-red-600">
-        탈퇴한 계정입니다.<br />같은 이메일로 새로 가입할 수 있어요.
-      </div>
-    );
-  }
   if (error === 'auth_error') {
     return (
       <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-center text-sm text-green-700">
