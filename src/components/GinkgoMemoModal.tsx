@@ -17,7 +17,7 @@ interface Props {
 }
 
 const inputCls =
-  'rounded-xl border border-amber-200/80 bg-white/80 px-3 py-2 text-sm text-amber-950 placeholder:text-amber-700/35 focus:outline-none focus:ring-2 focus:ring-amber-400/50';
+  'rounded-xl border border-amber-200/80 bg-white/80 px-3 py-2 text-base text-amber-950 placeholder:text-amber-700/35 focus:outline-none focus:ring-2 focus:ring-amber-400/50';
 
 export function GinkgoMemoModal({ book, onClose }: Props) {
   const router = useRouter();
