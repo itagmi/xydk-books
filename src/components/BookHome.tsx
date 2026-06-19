@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Plus, MoreHorizontal, LogOut, StickyNote, LayoutDashboard } from 'lucide-react';
+import { Plus, MoreHorizontal, LogOut, StickyNote, LayoutDashboard, UserRound } from 'lucide-react';
 import { deleteBook, updateBookStatus } from '@/lib/actions';
 import { createClient } from '@/lib/supabase/client';
 import { Book, type BookStatus } from '@/lib/types';
@@ -483,14 +483,17 @@ export function BookHome({ books, error, isAdmin }: Props) {
   const [nickname, setNickname] = useState('');
   const [showGuide, setShowGuide] = useState(false);
   const [guideDontShow, setGuideDontShow] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawPending, setWithdrawPending] = useState(false);
   const [withdrawError, setWithdrawError] = useState('');
+  const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       setNickname(data.user?.user_metadata?.nickname ?? '');
+      setUserEmail(data.user?.email ?? '');
     });
   }, []);
 
@@ -619,11 +622,11 @@ export function BookHome({ books, error, isAdmin }: Props) {
           </button>
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={() => setShowProfile(true)}
             className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-            aria-label="로그아웃"
+            aria-label="내 정보"
           >
-            <LogOut className="h-4 w-4" />
+            <UserRound className="h-4 w-4" />
           </button>
         </div>
       </header>
@@ -718,17 +721,6 @@ export function BookHome({ books, error, isAdmin }: Props) {
           </div>
         </LocationScene>
 
-      {/* 계정 탈퇴 */}
-      <div className="mt-10 flex justify-center">
-        <button
-          type="button"
-          onClick={() => { setShowWithdraw(true); setWithdrawError(''); }}
-          className="cursor-pointer text-xs text-gray-300 hover:text-gray-400 transition-colors"
-        >
-          계정 탈퇴
-        </button>
-      </div>
-
       {/* 온보딩 가이드 */}
       <Modal open={showGuide} onClose={() => dismissGuide()} title="">
         <div className="flex flex-col items-center gap-5 px-2 pb-2 pt-1 text-center">
@@ -817,6 +809,43 @@ export function BookHome({ books, error, isAdmin }: Props) {
       />
 
       <GinkgoMemoModal book={memoBook} onClose={() => setMemoBook(null)} />
+
+      {/* 내 정보 모달 */}
+      <Modal open={showProfile} onClose={() => setShowProfile(false)} title="내 정보">
+        <div className="space-y-5">
+          <div className="space-y-2">
+            {nickname && (
+              <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
+                <span className="text-xs text-gray-400">닉네임</span>
+                <span className="text-sm font-medium text-gray-800">{nickname}</span>
+              </div>
+            )}
+            {userEmail && (
+              <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
+                <span className="text-xs text-gray-400">이메일</span>
+                <span className="text-sm text-gray-700">{userEmail}</span>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => { setShowProfile(false); handleLogout(); }}
+            className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <LogOut className="h-4 w-4 text-gray-400" />
+            로그아웃
+          </button>
+          <div className="border-t border-gray-100 pt-4">
+            <button
+              type="button"
+              onClick={() => { setShowProfile(false); setWithdrawError(''); setShowWithdraw(true); }}
+              className="cursor-pointer text-xs text-gray-300 hover:text-red-400 transition-colors"
+            >
+              계정 탈퇴
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* 탈퇴 확인 모달 */}
       <Modal open={showWithdraw} onClose={() => !withdrawPending && setShowWithdraw(false)} title="계정 탈퇴">
