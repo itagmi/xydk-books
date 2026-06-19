@@ -17,7 +17,8 @@ export async function POST() {
     .upsert({ id: user.id, deleted_at: new Date().toISOString() });
 
   if (profileError) {
-    return Response.json({ error: '탈퇴 처리 중 오류가 발생했습니다.' }, { status: 500 });
+    console.error('[withdraw] profiles upsert error:', profileError);
+    return Response.json({ error: '탈퇴 처리 중 오류가 발생했습니다.', detail: profileError.message }, { status: 500 });
   }
 
   // 이메일 마스킹: 기존 이메일을 해방해 재가입 가능하게 함
