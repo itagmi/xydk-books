@@ -34,10 +34,24 @@ export default function LoginPage() {
     setError('');
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      setLoading(false);
+      return;
+    }
+
+    // 탈퇴 계정 차단
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('deleted_at')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    if (profile?.deleted_at) {
+      await supabase.auth.signOut();
+      setError('탈퇴한 계정입니다.');
       setLoading(false);
       return;
     }

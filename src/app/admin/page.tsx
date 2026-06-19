@@ -150,11 +150,10 @@ export default async function AdminPage({
                 const reviewCount = gen?.month === month ? (gen.count ?? 0) : 0;
                 const profile = profileMap.get(u.id);
                 const isDeleted = !!profile?.deleted_at;
-                const displayEmail = isDeleted ? (profile?.email ?? u.email ?? '—') : (u.email ?? '—');
                 return (
                   <tr key={u.id} className={`border-b border-gray-50 last:border-0 ${isDeleted ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3 text-gray-700">
-                      <span>{displayEmail}</span>
+                      <span>{u.email ?? '—'}</span>
                       {isDeleted && (
                         <span className="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-400">
                           탈퇴
