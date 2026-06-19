@@ -6,14 +6,33 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
-function ConfirmedBanner() {
+function StatusBanner() {
   const searchParams = useSearchParams();
-  if (searchParams.get('error') !== 'auth_error') return null;
-  return (
-    <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-center text-sm text-green-700">
-      이메일 인증이 완료됐어요.<br />로그인해주세요.
-    </div>
-  );
+  const error = searchParams.get('error');
+  const withdrawn = searchParams.get('withdrawn');
+
+  if (withdrawn === '1') {
+    return (
+      <div className="mb-4 rounded-xl bg-gray-50 px-4 py-3 text-center text-sm text-gray-600">
+        계정 탈퇴가 완료됐습니다.<br />같은 이메일로 새로 가입할 수 있어요.
+      </div>
+    );
+  }
+  if (error === 'deleted') {
+    return (
+      <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-center text-sm text-red-600">
+        탈퇴한 계정입니다.<br />같은 이메일로 새로 가입할 수 있어요.
+      </div>
+    );
+  }
+  if (error === 'auth_error') {
+    return (
+      <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-center text-sm text-green-700">
+        이메일 인증이 완료됐어요.<br />로그인해주세요.
+      </div>
+    );
+  }
+  return null;
 }
 
 export default function LoginPage() {
@@ -57,7 +76,7 @@ export default function LoginPage() {
         </div>
 
         <Suspense>
-          <ConfirmedBanner />
+          <StatusBanner />
         </Suspense>
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
