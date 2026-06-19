@@ -38,8 +38,17 @@ export default async function AdminPage({
   if (!user || user.email !== ADMIN_EMAIL) redirect('/');
 
   const admin = createAdminClient();
-  const { data: usersData } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const [{ data: usersData }, { data: profiles }] = await Promise.all([
+    admin.auth.admin.listUsers({ perPage: 1000 }),
+    admin.from('profiles').select('id, email, deleted_at'),
+  ]);
   const users = usersData?.users ?? [];
+
+  // profiles 맵: id → { email, deleted_at }
+  type ProfileRow = { id: string; email: string | null; deleted_at: string | null };
+  const profileMap = new Map<string, ProfileRow>(
+    (profiles ?? []).map((p: ProfileRow) => [p.id, p]),
+  );
 
   const todayStr = isoToDate(new Date().toISOString());
   const sevenDaysAgoIso = daysAgo(7);
@@ -139,9 +148,19 @@ export default async function AdminPage({
               {pageUsers.map(u => {
                 const gen = u.user_metadata?.review_gen as { month?: string; count?: number } | undefined;
                 const reviewCount = gen?.month === month ? (gen.count ?? 0) : 0;
+                const profile = profileMap.get(u.id);
+                const isDeleted = !!profile?.deleted_at;
+                const displayEmail = isDeleted ? (profile?.email ?? u.email ?? '—') : (u.email ?? '—');
                 return (
-                  <tr key={u.id} className="border-b border-gray-50 last:border-0">
-                    <td className="px-4 py-3 text-gray-700">{u.email ?? '—'}</td>
+                  <tr key={u.id} className={`border-b border-gray-50 last:border-0 ${isDeleted ? 'opacity-50' : ''}`}>
+                    <td className="px-4 py-3 text-gray-700">
+                      <span>{displayEmail}</span>
+                      {isDeleted && (
+                        <span className="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-400">
+                          탈퇴
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-500">{formatDate(u.created_at)}</td>
                     <td className="px-4 py-3 text-gray-500">{formatDate(u.last_sign_in_at)}</td>
                     <td className="px-4 py-3 text-right font-mono text-gray-900">
