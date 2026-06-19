@@ -134,8 +134,8 @@ export default async function AdminPage({
           <PageSizeSelect sizes={PAGE_SIZES} current={pageSize} />
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+          <table className="w-full min-w-[500px] text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-left">
                 <th className="px-4 py-3 font-medium text-gray-500">이메일</th>

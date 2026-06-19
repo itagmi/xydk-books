@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { X } from 'lucide-react';
+import { HelpCircle, X } from 'lucide-react';
 import { addNote } from '@/lib/actions';
+import type { NoteKind } from '@/lib/types';
 
 interface BookInfo {
   id: string;
@@ -22,6 +23,9 @@ const inputCls =
 export function GinkgoMemoModal({ book, onClose }: Props) {
   const router = useRouter();
   const [page, setPage] = useState('');
+  const [noteKind, setNoteKind] = useState<NoteKind>('기록');
+  const [showTip, setShowTip] = useState(false);
+  const tipRef = useRef<HTMLDivElement>(null);
   const [quote, setQuote] = useState('');
   const [reflection, setReflection] = useState('');
   const [pending, setPending] = useState(false);
@@ -40,8 +44,20 @@ export function GinkgoMemoModal({ book, onClose }: Props) {
   }, [book, onClose]);
 
   useEffect(() => {
+    if (!showTip) return;
+    const handler = (e: MouseEvent) => {
+      if (tipRef.current && !tipRef.current.contains(e.target as Node)) {
+        setShowTip(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showTip]);
+
+  useEffect(() => {
     if (!book) {
       setPage('');
+      setNoteKind('기록');
       setQuote('');
       setReflection('');
       setPending(false);
@@ -57,7 +73,7 @@ export function GinkgoMemoModal({ book, onClose }: Props) {
     if (!canSubmit || pending) return;
     setPending(true);
     try {
-      await addNote(book.id, Number(page) || 0, quote.trim(), reflection.trim());
+      await addNote(book.id, Number(page) || 0, quote.trim(), reflection.trim(), noteKind);
       setPage('');
       setQuote('');
       setReflection('');
@@ -118,14 +134,55 @@ export function GinkgoMemoModal({ book, onClose }: Props) {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            <input
-              type="number"
-              placeholder="페이지"
-              value={page}
-              onChange={(e) => setPage(e.target.value)}
-              className={`w-20 ${inputCls}`}
-              min={1}
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                placeholder="페이지"
+                value={page}
+                onChange={(e) => setPage(e.target.value)}
+                className={`w-20 ${inputCls}`}
+                min={1}
+              />
+              <div className="flex rounded-xl border border-amber-200/80 bg-white/80 p-0.5 text-xs font-medium">
+                {(['기록', '독후감'] as NoteKind[]).map((kind) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    onClick={() => setNoteKind(kind)}
+                    className={`rounded-lg px-3 py-1.5 transition-colors ${
+                      noteKind === kind
+                        ? 'bg-amber-400 text-amber-950'
+                        : 'text-amber-800/60 hover:text-amber-900'
+                    }`}
+                  >
+                    {kind}
+                  </button>
+                ))}
+              </div>
+              <div className="relative" ref={tipRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowTip((v) => !v)}
+                  onMouseEnter={() => setShowTip(true)}
+                  onMouseLeave={() => setShowTip(false)}
+                  className="flex items-center text-amber-700/40 hover:text-amber-700/70 transition-colors"
+                  aria-label="메모 종류 안내"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                </button>
+                {showTip && (
+                  <div
+                    className="absolute left-1/2 top-6 z-20 w-52 -translate-x-1/2 rounded-xl border border-amber-100 bg-white px-3.5 py-3 shadow-lg text-xs text-gray-600 space-y-2"
+                    onMouseEnter={() => setShowTip(true)}
+                    onMouseLeave={() => setShowTip(false)}
+                  >
+                    <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 h-2.5 w-2.5 rotate-45 border-l border-t border-amber-100 bg-white" />
+                    <p><span className="font-semibold text-amber-800">기록</span> — 읽으면서 남겨두고 싶은 내용을 단순히 메모해두는 용도예요.</p>
+                    <p><span className="font-semibold text-amber-800">독후감</span> — 나중에 종합해서 독후감으로 남길 내용을 모아두는 용도예요.</p>
+                  </div>
+                )}
+              </div>
+            </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-amber-900/70">글귀</label>
               <textarea

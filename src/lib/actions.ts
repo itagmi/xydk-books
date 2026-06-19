@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from './supabase/server';
 import { assertStatusCapacity, canFinishReading, finishReadingErrorMessage } from './book-limits';
-import { BookStatus } from './types';
+import { BookStatus, NoteKind } from './types';
 import { isMissingQuoteColumnError, toLegacyNoteContent } from './utils';
 
 function revalidateBlog() {
@@ -20,22 +20,33 @@ export async function addNote(
   bookId: string,
   page: number,
   quote: string,
-  reflection: string
+  reflection: string,
+  noteKind: NoteKind = '기록'
 ) {
   const supabase = await createClient();
-  let { error } = await supabase
+  let noteId: string | null = null;
+  let { error, data: inserted } = await supabase
     .from('notes')
-    .insert({ book_id: bookId, page, quote, reflection, content: '' });
+    .insert({ book_id: bookId, page, quote, reflection, content: '', note_kind: noteKind })
+    .select('id')
+    .single();
 
   if (error && isMissingQuoteColumnError(error.message)) {
-    ({ error } = await supabase.from('notes').insert({
+    const fallback = await supabase.from('notes').insert({
       book_id: bookId,
       page,
       content: toLegacyNoteContent(quote, reflection),
-    }));
+    }).select('id').single();
+    error = fallback.error;
+    inserted = fallback.data;
   }
 
   if (error) throw new Error(error.message);
+  noteId = inserted?.id ?? null;
+
+  if (noteId) {
+    await supabase.rpc('set_note_kind', { p_note_id: noteId, p_kind: noteKind });
+  }
   revalidatePath(`/books/${bookId}`);
 }
 
@@ -44,12 +55,13 @@ export async function updateNote(
   bookId: string,
   page: number,
   quote: string,
-  reflection: string
+  reflection: string,
+  noteKind: NoteKind = '기록'
 ) {
   const supabase = await createClient();
   let { error } = await supabase
     .from('notes')
-    .update({ page, quote, reflection, content: '' })
+    .update({ page, quote, reflection, content: '', note_kind: noteKind })
     .eq('id', noteId);
 
   if (error && isMissingQuoteColumnError(error.message)) {
@@ -60,6 +72,7 @@ export async function updateNote(
   }
 
   if (error) throw new Error(error.message);
+  await supabase.rpc('set_note_kind', { p_note_id: noteId, p_kind: noteKind });
   revalidatePath(`/books/${bookId}`);
 }
 

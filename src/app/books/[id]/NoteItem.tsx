@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteNote, updateNote } from '@/lib/actions';
-import { Note } from '@/lib/types';
+import { Note, NoteKind } from '@/lib/types';
 import { cn, notePreview, noteQuote, noteReflection } from '@/lib/utils';
 import { ChevronDown, Pencil, Trash2 } from 'lucide-react';
 
@@ -40,6 +40,7 @@ export function NoteItem({ note }: { note: Note }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [page, setPage] = useState(String(note.page || ''));
+  const [noteKind, setNoteKind] = useState<NoteKind>(note.note_kind ?? '기록');
   const [quote, setQuote] = useState(noteQuote(note));
   const [reflection, setReflection] = useState(noteReflection(note));
   const [saving, setSaving] = useState(false);
@@ -51,6 +52,7 @@ export function NoteItem({ note }: { note: Note }) {
 
   const handleEdit = () => {
     setPage(String(note.page || ''));
+    setNoteKind(note.note_kind ?? '기록');
     setQuote(noteQuote(note));
     setReflection(noteReflection(note));
     setSaveError('');
@@ -60,6 +62,7 @@ export function NoteItem({ note }: { note: Note }) {
 
   const handleCancel = () => {
     setPage(String(note.page || ''));
+    setNoteKind(note.note_kind ?? '기록');
     setQuote(noteQuote(note));
     setReflection(noteReflection(note));
     setEditing(false);
@@ -75,7 +78,8 @@ export function NoteItem({ note }: { note: Note }) {
         note.book_id,
         Number(page) || 0,
         quote.trim(),
-        reflection.trim()
+        reflection.trim(),
+        noteKind
       );
       setEditing(false);
       router.refresh();
@@ -98,14 +102,32 @@ export function NoteItem({ note }: { note: Note }) {
   if (editing) {
     return (
       <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 space-y-2">
-        <input
-          type="number"
-          placeholder="페이지"
-          value={page}
-          onChange={(e) => setPage(e.target.value)}
-          className={`w-20 ${inputCls}`}
-          min={1}
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            placeholder="페이지"
+            value={page}
+            onChange={(e) => setPage(e.target.value)}
+            className={`w-20 ${inputCls}`}
+            min={1}
+          />
+          <div className="flex rounded-lg border border-yellow-300 bg-white p-0.5 text-xs font-medium">
+            {(['기록', '독후감'] as NoteKind[]).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => setNoteKind(kind)}
+                className={`rounded-md px-2.5 py-1 transition-colors ${
+                  noteKind === kind
+                    ? 'bg-yellow-400 text-yellow-900'
+                    : 'text-yellow-700/60 hover:text-yellow-800'
+                }`}
+              >
+                {kind}
+              </button>
+            ))}
+          </div>
+        </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-yellow-800">글귀</label>
           <textarea
@@ -155,6 +177,13 @@ export function NoteItem({ note }: { note: Note }) {
         className="flex w-full items-center gap-2 p-3 text-left hover:bg-yellow-100/50 transition-colors"
         aria-expanded={expanded}
       >
+        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+          note.note_kind === '독후감'
+            ? 'bg-amber-200/70 text-amber-800'
+            : 'bg-yellow-100 text-yellow-700'
+        }`}>
+          {note.note_kind ?? '기록'}
+        </span>
         {note.page > 0 ? (
           <span className="shrink-0 rounded bg-yellow-200/60 px-1.5 py-0.5 text-xs font-mono text-yellow-800">
             p.{note.page}

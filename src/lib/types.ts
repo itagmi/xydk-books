@@ -14,12 +14,15 @@ export interface Book {
   created_at: string;
 }
 
+export type NoteKind = '기록' | '독후감';
+
 export interface Note {
   id: string;
   book_id: string;
   page: number;
   quote: string;
   reflection: string;
+  note_kind: NoteKind;
   /** @deprecated legacy — quote/reflection 사용 */
   content?: string;
   created_at: string;
