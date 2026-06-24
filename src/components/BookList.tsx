@@ -11,7 +11,7 @@ import { BookOpen, Pencil, Trash2, X } from 'lucide-react';
 
 type BookListItem = Pick<
   Book,
-  'id' | 'title' | 'author' | 'category' | 'status' | 'cover_image'
+  'id' | 'title' | 'author' | 'category' | 'status' | 'cover_image' | 'total_pages'
 >;
 
 interface Props {

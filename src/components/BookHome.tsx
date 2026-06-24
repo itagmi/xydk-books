@@ -35,8 +35,13 @@ import { STATUS_LABELS } from '@/lib/utils';
 
 type BookListItem = Pick<
   Book,
-  'id' | 'title' | 'author' | 'category' | 'status' | 'cover_image' | 'rating'
->;
+  'id' | 'title' | 'author' | 'category' | 'status' | 'cover_image' | 'rating' | 'total_pages'
+> & { max_page: number | null };
+
+function calcProgress(maxPage: number | null, totalPages: number | null): number | null {
+  if (!totalPages || maxPage == null) return null;
+  return Math.min(100, Math.round((maxPage / totalPages) * 100));
+}
 
 type SceneVariant = 'desk' | 'bag';
 
@@ -55,6 +60,34 @@ function CoverPlaceholder({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   return (
     <div className={`${cls} flex shrink-0 items-center justify-center rounded-md bg-gray-100`}>
       <img src="/logo.svg" alt="" className="h-5 w-auto opacity-30" />
+    </div>
+  );
+}
+
+function ProgressOverlay({
+  progress,
+  rounded = false,
+  spine = false,
+}: {
+  progress: number | null;
+  rounded?: boolean;
+  spine?: boolean;
+}) {
+  if (progress === null) return null;
+  const darkHeight = `${100 - progress}%`;
+  return (
+    <div
+      className={`pointer-events-none absolute inset-0 overflow-hidden${rounded ? ' rounded-lg' : ''}`}
+      aria-hidden
+    >
+      <div className="absolute top-0 left-0 right-0 bg-black/55" style={{ height: darkHeight }} />
+      {!spine && (
+        <div className="absolute bottom-1.5 inset-x-0 text-center">
+          <span className="text-white text-[11px] font-bold" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>
+            {progress}%
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -380,18 +413,22 @@ function ReadingCard({
           onClick={onMemo}
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-4 text-left hover:opacity-90 transition-opacity"
         >
-          <div className="shrink-0">
+          <div className="relative shrink-0">
             {book.cover_image ? (
               <Image
                 src={book.cover_image}
                 alt={book.title}
                 width={64}
                 height={88}
-                className="h-22 w-16 rounded-lg object-cover shadow-md"
+                className="block h-22 w-16 rounded-lg object-cover shadow-md"
               />
             ) : (
               <CoverPlaceholder size="lg" />
             )}
+            <ProgressOverlay
+              progress={calcProgress(book.max_page, book.total_pages)}
+              rounded
+            />
           </div>
           <div className="min-w-0 flex-1">
             <p className="font-semibold leading-snug text-gray-900">{book.title}</p>
@@ -460,6 +497,12 @@ function ShelfSpine({
         />
       ) : (
         <span className="scene-spine-title">{book.title}</span>
+      )}
+      {!finished && (
+        <ProgressOverlay
+          progress={calcProgress(book.max_page, book.total_pages)}
+          spine
+        />
       )}
       {finished && book.rating != null && (
         <span className="scene-spine-rating" aria-label={`${book.rating}점`}>

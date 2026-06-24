@@ -8,7 +8,7 @@ import { ALL_STATUSES, STATUS_LABELS } from '@/lib/utils';
 import { BookOpen, Loader2 } from 'lucide-react';
 
 interface Props {
-  book?: Pick<Book, 'id' | 'title' | 'author' | 'category' | 'status' | 'cover_image'>;
+  book?: Pick<Book, 'id' | 'title' | 'author' | 'category' | 'status' | 'cover_image' | 'total_pages'>;
   onDone: () => void;
 }
 
@@ -26,6 +26,7 @@ export function BookForm({ book, onDone }: Props) {
     category: book?.category ?? '',
     status: (book?.status ?? '책장속') as BookStatus,
     cover_image: book?.cover_image ?? '',
+    total_pages: book?.total_pages ? String(book.total_pages) : '',
   });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
@@ -110,12 +111,14 @@ export function BookForm({ book, onDone }: Props) {
     setPending(true);
     setError('');
     try {
+      const totalPages = form.total_pages.trim() ? Number(form.total_pages) : undefined;
       const data = {
         title: form.title.trim(),
         author: form.author.trim(),
         category: form.category.trim(),
         ...(book ? { status: form.status } : { status: '책장속' as BookStatus }),
         ...(form.cover_image.trim() ? { cover_image: form.cover_image.trim() } : {}),
+        ...(totalPages && totalPages > 0 ? { total_pages: totalPages } : book ? { total_pages: null } : {}),
       };
       if (book) {
         await updateBook(book.id, data);
@@ -125,6 +128,7 @@ export function BookForm({ book, onDone }: Props) {
           author: data.author,
           category: data.category,
           ...(data.cover_image ? { cover_image: data.cover_image } : {}),
+          ...(totalPages && totalPages > 0 ? { total_pages: totalPages } : {}),
         });
       }
       onDone();
@@ -233,6 +237,19 @@ export function BookForm({ book, onDone }: Props) {
           value={form.category}
           onChange={set('category')}
           placeholder="소설, 에세이, 자기계발 등"
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-gray-600">
+          총 페이지 <span className="font-normal text-gray-400">(선택)</span>
+        </label>
+        <input
+          type="number"
+          min={1}
+          className={inputCls}
+          value={form.total_pages}
+          onChange={set('total_pages')}
+          placeholder="예: 324"
         />
       </div>
       {book ? (

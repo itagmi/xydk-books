@@ -131,6 +131,7 @@ export async function createBook(data: {
   author: string;
   category: string;
   cover_image?: string;
+  total_pages?: number;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -154,6 +155,7 @@ export async function updateBook(
     status?: BookStatus;
     cover_image?: string;
     rating?: number;
+    total_pages?: number | null;
   }
 ) {
   const supabase = await createClient();

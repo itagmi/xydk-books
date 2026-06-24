@@ -8,6 +8,7 @@ export interface Book {
   status: BookStatus;
   cover_image: string | null;
   rating: number | null;
+  total_pages: number | null;
   started_at: string | null;
   finished_at: string | null;
   review: string | null;

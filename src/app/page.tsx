@@ -7,10 +7,24 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'itagmi88@gmail.com';
 export default async function HomePage() {
   const supabase = await createClient();
 
-  const [{ data: books, error }, { data: { user } }] = await Promise.all([
-    supabase.from('books').select('id, title, author, category, status, cover_image, rating').order('created_at', { ascending: false }),
+  const [{ data: booksRaw, error }, { data: { user } }] = await Promise.all([
+    supabase.from('books').select('id, title, author, category, status, cover_image, rating, total_pages').order('created_at', { ascending: false }),
     supabase.auth.getUser(),
   ]);
+
+  const bookIds = booksRaw?.map((b) => b.id) ?? [];
+  const { data: maxPages } = bookIds.length > 0
+    ? await supabase.rpc('get_book_max_pages', { p_book_ids: bookIds })
+    : { data: null };
+
+  const maxPageMap = new Map<string, number>(
+    (maxPages as { book_id: string; max_page: number }[] | null)?.map((r) => [r.book_id, r.max_page]) ?? []
+  );
+
+  const books = booksRaw?.map((b) => ({
+    ...b,
+    max_page: maxPageMap.get(b.id) ?? null,
+  })) ?? [];
 
   // 탈퇴 처리된 계정의 잔존 세션 차단
   if (user) {
