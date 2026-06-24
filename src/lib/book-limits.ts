@@ -12,6 +12,12 @@ export function getStatusLimit(status: BookStatus): number | undefined {
 }
 
 export function statusLimitErrorMessage(status: BookStatus): string {
+  if (status === '책상위') {
+    return '책상 위가 가득 찼어요. 읽고 있는 책을 완독하면 새 책을 올릴 수 있어요.';
+  }
+  if (status === '가방안') {
+    return '가방 안이 가득 찼어요. 책상에 옮기거나 완독하면 자리가 생겨요.';
+  }
   const limit = STATUS_LIMITS[status];
   if (limit == null) return '상태를 변경할 수 없습니다.';
   return `${STATUS_LABELS[status]}에는 최대 ${limit}권까지 둘 수 있어요.`;

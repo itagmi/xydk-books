@@ -29,7 +29,7 @@ import { GinkgoMemoModal } from '@/components/GinkgoMemoModal';
 import { FinishReadingConfirmModal } from '@/components/FinishReadingConfirmModal';
 import { EmptyDeskGuideIllustration } from '@/components/EmptyDeskGuideIllustration';
 import { LocationScene } from '@/components/LocationScene';
-import { isStatusAtCapacity, STATUS_LIMITS, canFinishReading } from '@/lib/book-limits';
+import { isStatusAtCapacity, STATUS_LIMITS, canFinishReading, statusLimitErrorMessage } from '@/lib/book-limits';
 import { markFinishedReadingToast } from '@/components/FinishedReadingToast';
 import { STATUS_LABELS } from '@/lib/utils';
 
@@ -675,7 +675,7 @@ export function BookHome({ books, error, isAdmin }: Props) {
       (b) => b.status === toStatus && b.id !== dragged.id
     ).length;
     if (isStatusAtCapacity(toStatus, currentCount, fromStatus)) {
-      setDragError(`${STATUS_LABELS[toStatus]}에는 더 이상 책을 둘 수 없어요.`);
+      setDragError(statusLimitErrorMessage(toStatus));
       setTimeout(() => setDragError(''), 3000);
       return;
     }
