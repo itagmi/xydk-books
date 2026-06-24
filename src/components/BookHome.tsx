@@ -581,8 +581,8 @@ export function BookHome({ books, error, isAdmin }: Props) {
 
   // books prop이 바뀌면(server refresh) localBooks 동기화
   useEffect(() => {
-    if (!activeBook) setLocalBooks(books);
-  }, [books, activeBook]);
+    setLocalBooks(books);
+  }, [books]);
 
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } });
   const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } });
