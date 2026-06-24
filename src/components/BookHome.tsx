@@ -99,9 +99,10 @@ function DroppableZone({
   const { setNodeRef, isOver } = useDroppable({ id });
 
   let ringClass = '';
-  if (isDragActive && isOver && canDrop) ringClass = 'ring-2 ring-inset ring-white/50';
-  else if (isDragActive && isOver && !canDrop) ringClass = 'ring-2 ring-inset ring-red-400/60';
-  else if (isDragActive && canDrop) ringClass = 'ring-1 ring-inset ring-white/20';
+  if (isDragActive && canDrop) {
+    ringClass =
+      isOver ? 'ring-2 ring-inset ring-white/45' : 'ring-1 ring-inset ring-white/20';
+  }
 
   return (
     <div
@@ -362,8 +363,7 @@ function ReadingCard({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`scene-card ${cardClass} relative p-4 cursor-grab active:cursor-grabbing`}
-      style={{ opacity: isDragging ? 0 : 1 }}
+      className={`scene-card ${cardClass} relative p-4 cursor-grab active:cursor-grabbing${isDragging ? ' opacity-40' : ''}`}
     >
       <ReadingLocationMenu
         book={book}
@@ -442,9 +442,8 @@ function ShelfSpine({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`scene-spine${finished ? ' scene-spine-finished' : ''}${!finished ? ' cursor-grab active:cursor-grabbing' : ''}`}
+      className={`scene-spine${finished ? ' scene-spine-finished' : ''}${!finished ? ' cursor-grab active:cursor-grabbing' : ''}${isDragging ? ' opacity-40' : ''}`}
       style={{
-        opacity: isDragging ? 0 : 1,
         height: `${4.5 + (book.title.length % 3) * 0.4}rem`,
         background: book.cover_image
           ? undefined
@@ -722,7 +721,7 @@ export function BookHome({ books, error, isAdmin }: Props) {
 
   const emptySlot = (msg: string) => (
     <div className="flex items-center justify-center py-8">
-      <p className="text-sm text-amber-900/35">{msg}</p>
+      <p className="scene-empty-text">{msg}</p>
     </div>
   );
 
@@ -793,7 +792,7 @@ export function BookHome({ books, error, isAdmin }: Props) {
               ))}
               {onDesk.length === 0 && isDragActive && canDropOnDesk && (
                 <div className="flex items-center justify-center py-6">
-                  <p className="text-sm text-amber-900/35">여기에 놓으세요</p>
+                  <p className="scene-empty-text">여기에 놓으세요</p>
                 </div>
               )}
             </div>
@@ -824,7 +823,7 @@ export function BookHome({ books, error, isAdmin }: Props) {
               ))}
               {inBag.length === 0 && isDragActive && canDropOnBag && (
                 <div className="flex items-center justify-center py-6">
-                  <p className="text-sm text-amber-900/35">여기에 놓으세요</p>
+                  <p className="scene-empty-text">여기에 놓으세요</p>
                 </div>
               )}
             </div>
@@ -869,7 +868,7 @@ export function BookHome({ books, error, isAdmin }: Props) {
               </ShelfZone>
               {shelfTotal === 0 && isDragActive && canDropOnShelf && (
                 <div className="flex items-center justify-center py-6">
-                  <p className="text-sm text-amber-900/35">여기에 놓으세요</p>
+                  <p className="scene-empty-text">여기에 놓으세요</p>
                 </div>
               )}
             </div>
