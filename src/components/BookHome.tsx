@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Plus, MoreHorizontal, StickyNote, LayoutDashboard, GripVertical } from 'lucide-react';
+import { Plus, MoreHorizontal, StickyNote, LayoutDashboard } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -359,19 +359,11 @@ function ReadingCard({
   return (
     <div
       ref={setNodeRef}
-      className={`scene-card ${cardClass} relative p-4 pt-10`}
+      {...listeners}
+      {...attributes}
+      className={`scene-card ${cardClass} relative p-4 cursor-grab active:cursor-grabbing`}
       style={{ opacity: isDragging ? 0 : 1 }}
     >
-      {/* 드래그 핸들 */}
-      <button
-        {...listeners}
-        {...attributes}
-        className="absolute left-2 top-2 z-10 touch-none rounded p-1 text-gray-300 transition-colors hover:text-gray-500 cursor-grab active:cursor-grabbing"
-        aria-label="드래그하여 이동"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
-
       <ReadingLocationMenu
         book={book}
         deskCount={deskCount}
