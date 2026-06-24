@@ -18,6 +18,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
+import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { UserMenuDropdown } from '@/components/UserMenuDropdown';
 import { deleteBook, updateBookStatus } from '@/lib/actions';
 import { createClient } from '@/lib/supabase/client';
@@ -983,7 +984,7 @@ export function BookHome({ books, error, isAdmin }: Props) {
         )}
       </div>
 
-      <DragOverlay dropAnimation={null}>
+      <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
         {activeBook ? <DragOverlayCard book={activeBook} /> : null}
       </DragOverlay>
     </DndContext>
