@@ -5,7 +5,19 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Plus, MoreHorizontal, StickyNote, LayoutDashboard } from 'lucide-react';
+import { Plus, MoreHorizontal, StickyNote, LayoutDashboard, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  DragOverlay,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  MouseSensor,
+  TouchSensor,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
 import { UserMenuDropdown } from '@/components/UserMenuDropdown';
 import { deleteBook, updateBookStatus } from '@/lib/actions';
 import { createClient } from '@/lib/supabase/client';
@@ -42,6 +54,60 @@ function CoverPlaceholder({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   return (
     <div className={`${cls} flex shrink-0 items-center justify-center rounded-md bg-gray-100`}>
       <img src="/logo.svg" alt="" className="h-5 w-auto opacity-30" />
+    </div>
+  );
+}
+
+function DragOverlayCard({ book }: { book: BookListItem }) {
+  return (
+    <div className="scene-card scene-card-desk w-64 rotate-1 p-3 opacity-95 shadow-2xl">
+      <div className="flex items-center gap-3">
+        <div className="shrink-0">
+          {book.cover_image ? (
+            <Image
+              src={book.cover_image}
+              alt={book.title}
+              width={40}
+              height={56}
+              className="h-14 w-10 rounded-md object-cover shadow"
+            />
+          ) : (
+            <CoverPlaceholder size="sm" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-gray-900">{book.title}</p>
+          <p className="truncate text-xs text-gray-500">{book.author}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DroppableZone({
+  id,
+  children,
+  canDrop,
+  isDragActive,
+}: {
+  id: string;
+  children: React.ReactNode;
+  canDrop: boolean;
+  isDragActive: boolean;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+
+  let ringClass = '';
+  if (isDragActive && isOver && canDrop) ringClass = 'ring-2 ring-inset ring-white/50';
+  else if (isDragActive && isOver && !canDrop) ringClass = 'ring-2 ring-inset ring-red-400/60';
+  else if (isDragActive && canDrop) ringClass = 'ring-1 ring-inset ring-white/20';
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`transition-all duration-150 ${isDragActive ? 'min-h-16' : ''} ${ringClass}`}
+    >
+      {children}
     </div>
   );
 }
@@ -283,10 +349,29 @@ function ReadingCard({
   onMemo: () => void;
   onRequestFinish: () => void;
 }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: book.id,
+    data: { bookId: book.id, fromStatus: book.status },
+  });
+
   const cardClass = variant === 'bag' ? 'scene-card-bag' : 'scene-card-desk';
 
   return (
-    <div className={`scene-card ${cardClass} relative p-4 pt-10`}>
+    <div
+      ref={setNodeRef}
+      className={`scene-card ${cardClass} relative p-4 pt-10`}
+      style={{ opacity: isDragging ? 0 : 1 }}
+    >
+      {/* 드래그 핸들 */}
+      <button
+        {...listeners}
+        {...attributes}
+        className="absolute left-2 top-2 z-10 touch-none rounded p-1 text-gray-300 transition-colors hover:text-gray-500 cursor-grab active:cursor-grabbing"
+        aria-label="드래그하여 이동"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+
       <ReadingLocationMenu
         book={book}
         deskCount={deskCount}
@@ -353,10 +438,20 @@ function ShelfSpine({
   deskCount: number;
   bagCount: number;
 }) {
-  const spine = (
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: book.id,
+    data: { bookId: book.id, fromStatus: book.status },
+    disabled: finished,
+  });
+
+  const spineEl = (
     <div
-      className={`scene-spine${finished ? ' scene-spine-finished' : ''}`}
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`scene-spine${finished ? ' scene-spine-finished' : ''}${!finished ? ' cursor-grab active:cursor-grabbing' : ''}`}
       style={{
+        opacity: isDragging ? 0 : 1,
         height: `${4.5 + (book.title.length % 3) * 0.4}rem`,
         background: book.cover_image
           ? undefined
@@ -386,10 +481,10 @@ function ShelfSpine({
     <div className="group relative">
       {finished ? (
         <Link href={`/books/${book.id}`} className="block" title={book.title}>
-          {spine}
+          {spineEl}
         </Link>
       ) : (
-        <div title={book.title}>{spine}</div>
+        <div title={book.title}>{spineEl}</div>
       )}
       <ReadingLocationMenu
         book={book}
@@ -486,6 +581,20 @@ export function BookHome({ books, error, isAdmin }: Props) {
   const [guideDontShow, setGuideDontShow] = useState(false);
   const [userEmail, setUserEmail] = useState('');
 
+  // D&D state
+  const [localBooks, setLocalBooks] = useState(books);
+  const [activeBook, setActiveBook] = useState<BookListItem | null>(null);
+  const [dragError, setDragError] = useState('');
+
+  // books prop이 바뀌면(server refresh) localBooks 동기화
+  useEffect(() => {
+    if (!activeBook) setLocalBooks(books);
+  }, [books, activeBook]);
+
+  const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } });
+  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } });
+  const sensors = useSensors(mouseSensor, touchSensor);
+
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
@@ -517,7 +626,6 @@ export function BookHome({ books, error, isAdmin }: Props) {
     await supabase.auth.signOut();
     window.location.href = '/login';
   };
-
 
   const requestDelete = (id: string, title: string) => {
     setDeleteTarget({ id, title });
@@ -554,11 +662,52 @@ export function BookHome({ books, error, isAdmin }: Props) {
     }
   };
 
-  const inBag = books.filter((b) => b.status === '가방안');
-  const onDesk = books.filter((b) => b.status === '책상위');
-  const unread = books.filter((b) => b.status === '책장속');
-  const finished = books.filter((b) => b.status === '완독완료');
-  const reading = inBag.length + onDesk.length;
+  const handleDragStart = ({ active }: DragStartEvent) => {
+    const book = localBooks.find((b) => b.id === active.id);
+    setActiveBook(book ?? null);
+    setDragError('');
+  };
+
+  const handleDragEnd = async ({ active, over }: DragEndEvent) => {
+    const dragged = activeBook;
+    setActiveBook(null);
+
+    if (!over || !dragged) return;
+
+    const toStatus = over.id as BookStatus;
+    const fromStatus = dragged.status;
+    if (fromStatus === toStatus) return;
+
+    // 용량 체크 (드래그 대상을 제외한 현재 카운트)
+    const currentCount = localBooks.filter(
+      (b) => b.status === toStatus && b.id !== dragged.id
+    ).length;
+    if (isStatusAtCapacity(toStatus, currentCount, fromStatus)) {
+      setDragError(`${STATUS_LABELS[toStatus]}에는 더 이상 책을 둘 수 없어요.`);
+      setTimeout(() => setDragError(''), 3000);
+      return;
+    }
+
+    // 낙관적 업데이트
+    setLocalBooks((prev) =>
+      prev.map((b) => (b.id === dragged.id ? { ...b, status: toStatus } : b))
+    );
+
+    try {
+      await updateBookStatus(dragged.id, toStatus);
+      router.refresh();
+    } catch (err) {
+      // 실패 시 되돌리기
+      setLocalBooks(books);
+      setDragError(err instanceof Error ? err.message : '상태 변경에 실패했습니다.');
+      setTimeout(() => setDragError(''), 3000);
+    }
+  };
+
+  const inBag = localBooks.filter((b) => b.status === '가방안');
+  const onDesk = localBooks.filter((b) => b.status === '책상위');
+  const unread = localBooks.filter((b) => b.status === '책장속');
+  const finished = localBooks.filter((b) => b.status === '완독완료');
   const unreadRows = chunkBooks(unread, 6);
   const finishedRows = chunkBooks(finished, 6);
   const shelfTotal = unread.length + finished.length;
@@ -569,6 +718,15 @@ export function BookHome({ books, error, isAdmin }: Props) {
     .filter(Boolean)
     .join(' · ');
 
+  const isDragActive = activeBook !== null;
+
+  // 각 존에 드롭 가능한지 판단 (드래그 중인 책은 제외하고 카운트)
+  const deskCountExcluding = activeBook ? onDesk.filter((b) => b.id !== activeBook.id).length : onDesk.length;
+  const bagCountExcluding = activeBook ? inBag.filter((b) => b.id !== activeBook.id).length : inBag.length;
+  const canDropOnDesk = isDragActive && activeBook!.status !== '책상위' && !isStatusAtCapacity('책상위', deskCountExcluding, activeBook!.status);
+  const canDropOnBag = isDragActive && activeBook!.status !== '가방안' && !isStatusAtCapacity('가방안', bagCountExcluding, activeBook!.status);
+  const canDropOnShelf = isDragActive && activeBook!.status !== '책장속';
+
   const emptySlot = (msg: string) => (
     <div className="flex items-center justify-center py-8">
       <p className="text-sm text-amber-900/35">{msg}</p>
@@ -576,230 +734,266 @@ export function BookHome({ books, error, isAdmin }: Props) {
   );
 
   return (
-    <div>
-      <header className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <img src="/logo.svg" alt="Ginkgo" className="h-9 w-auto" />
-          <div>
-            <h1 className="text-lg font-light tracking-widest text-gray-800">GINKGO</h1>
-            {nickname && (
-              <p className="text-xs text-gray-400">{nickname}의 서재</p>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div>
+        <header className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <img src="/logo.svg" alt="Ginkgo" className="h-9 w-auto" />
+            <div>
+              <h1 className="text-lg font-light tracking-widest text-gray-800">GINKGO</h1>
+              {nickname && (
+                <p className="text-xs text-gray-400">{nickname}의 서재</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                aria-label="관리자 대시보드"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+              </Link>
             )}
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-              aria-label="관리자 대시보드"
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+              aria-label="책 추가"
             >
-              <LayoutDashboard className="h-4 w-4" />
-            </Link>
-          )}
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-            aria-label="책 추가"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
-          <UserMenuDropdown
-            nickname={nickname}
-            email={userEmail}
-            onLogout={handleLogout}
-          />
-        </div>
-      </header>
-
-      {error && (
-        <p className="mb-4 text-sm text-red-500">데이터를 불러오지 못했습니다.</p>
-      )}
-
-      {/* 책상 위 */}
-      <LocationScene
-        status="책상위"
-        count={onDesk.length}
-        limit={onDesk.length > 0 ? STATUS_LIMITS.책상위 : undefined}
-        empty={onDesk.length === 0 ? emptySlot('비어있어요') : undefined}
-      >
-        <div className="relative z-[1] space-y-3">
-          {onDesk.map((book) => (
-            <ReadingCard
-              key={book.id}
-              book={book}
-              variant="desk"
-              deskCount={onDesk.length}
-              bagCount={inBag.length}
-              deleting={deleting === book.id}
-              onDelete={() => requestDelete(book.id, book.title)}
-              onMemo={() => setMemoBook(book)}
-              onRequestFinish={() => requestFinish(book.id, book.title)}
+              <Plus className="h-5 w-5" />
+            </button>
+            <UserMenuDropdown
+              nickname={nickname}
+              email={userEmail}
+              onLogout={handleLogout}
             />
-          ))}
-        </div>
-      </LocationScene>
-
-      {/* 가방 안 */}
-      <LocationScene
-        status="가방안"
-        count={inBag.length}
-        limit={inBag.length > 0 ? STATUS_LIMITS.가방안 : undefined}
-        empty={inBag.length === 0 ? emptySlot('비어있어요') : undefined}
-      >
-        <div className="relative z-[1] space-y-3">
-          {inBag.map((book) => (
-            <ReadingCard
-              key={book.id}
-              book={book}
-              variant="bag"
-              deskCount={onDesk.length}
-              bagCount={inBag.length}
-              deleting={deleting === book.id}
-              onDelete={() => requestDelete(book.id, book.title)}
-              onMemo={() => setMemoBook(book)}
-              onRequestFinish={() => requestFinish(book.id, book.title)}
-            />
-          ))}
-        </div>
-      </LocationScene>
-
-      {/* 책장 속 — 읽기 전 / 완독 */}
-      <LocationScene
-        status="책장속"
-        count={shelfTotal > 0 ? shelfTotal : undefined}
-        detail={shelfDetail}
-        empty={shelfTotal === 0 ? emptySlot('비어있어요') : undefined}
-      >
-        <div className="relative z-[1]">
-            <ShelfZone label="읽기 전" count={unread.length}>
-              {unreadRows.map((row, i) => (
-                <ShelfBoard
-                  key={`unread-${i}`}
-                  books={row}
-                  deleting={deleting}
-                  onDelete={requestDelete}
-                  onRequestFinish={requestFinish}
-                  deskCount={onDesk.length}
-                  bagCount={inBag.length}
-                />
-              ))}
-            </ShelfZone>
-            <ShelfZone label="완독" count={finished.length}>
-              {finishedRows.map((row, i) => (
-                <ShelfBoard
-                  key={`finished-${i}`}
-                  books={row}
-                  finished
-                  deleting={deleting}
-                  onDelete={requestDelete}
-                  onRequestFinish={requestFinish}
-                  deskCount={onDesk.length}
-                  bagCount={inBag.length}
-                />
-              ))}
-            </ShelfZone>
           </div>
+        </header>
+
+        {error && (
+          <p className="mb-4 text-sm text-red-500">데이터를 불러오지 못했습니다.</p>
+        )}
+
+        {/* 책상 위 */}
+        <LocationScene
+          status="책상위"
+          count={onDesk.length}
+          limit={onDesk.length > 0 ? STATUS_LIMITS.책상위 : undefined}
+          empty={onDesk.length === 0 && !isDragActive ? emptySlot('비어있어요') : undefined}
+        >
+          <DroppableZone id="책상위" canDrop={canDropOnDesk} isDragActive={isDragActive}>
+            <div className="relative z-[1] space-y-3">
+              {onDesk.map((book) => (
+                <ReadingCard
+                  key={book.id}
+                  book={book}
+                  variant="desk"
+                  deskCount={onDesk.length}
+                  bagCount={inBag.length}
+                  deleting={deleting === book.id}
+                  onDelete={() => requestDelete(book.id, book.title)}
+                  onMemo={() => setMemoBook(book)}
+                  onRequestFinish={() => requestFinish(book.id, book.title)}
+                />
+              ))}
+              {onDesk.length === 0 && isDragActive && canDropOnDesk && (
+                <div className="flex items-center justify-center py-6">
+                  <p className="text-sm text-amber-900/35">여기에 놓으세요</p>
+                </div>
+              )}
+            </div>
+          </DroppableZone>
         </LocationScene>
 
-      {/* 온보딩 가이드 */}
-      <Modal open={showGuide} onClose={() => dismissGuide()} title="">
-        <div className="flex flex-col items-center gap-5 px-2 pb-2 pt-1 text-center">
-          <EmptyDeskGuideIllustration />
-          <div className="space-y-1.5">
-            <p className="text-sm font-medium text-gray-800">
-              Ginkgo에 오신 걸 환영해요
-            </p>
-            <p className="text-sm leading-relaxed text-gray-500">
-              읽는 책을 책상·가방·책장에 두고<br />
-              메모와 독후감까지 남기는 독서 기록 앱이에요.
-            </p>
-            <p className="text-xs leading-relaxed text-gray-400">
-              오른쪽 위 <span className="font-medium text-gray-600">+</span> 버튼으로 책을 추가한 뒤,<br />
-              책상 위에 올리면 읽기가 시작돼요.
-            </p>
-          </div>
-          <div className="flex w-full flex-col gap-2">
-            <button
-              onClick={() => dismissGuide(true)}
-              className="w-full rounded-xl bg-gray-900 py-3 text-sm font-medium text-white hover:bg-gray-700 transition-colors"
-            >
-              + 첫 책 추가하기
-            </button>
-            <button
-              onClick={() => dismissGuide()}
-              className="w-full rounded-xl border border-gray-200 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors"
-            >
-              닫기
-            </button>
-          </div>
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-gray-400">
-            <input
-              type="checkbox"
-              checked={guideDontShow}
-              onChange={(e) => setGuideDontShow(e.target.checked)}
-              className="h-3.5 w-3.5 accent-gray-700"
-            />
-            다시 보지 않기
-          </label>
-        </div>
-      </Modal>
-
-      <Modal open={adding} onClose={() => setAdding(false)} title="새 책 추가">
-        <BookForm onDone={() => setAdding(false)} />
-      </Modal>
-
-      <Modal
-        open={deleteTarget != null}
-        onClose={() => setDeleteTarget(null)}
-        title="책 삭제"
-      >
-        <p className="text-sm text-gray-600">
-          <span className="font-medium text-gray-900">{deleteTarget?.title}</span>
-          을(를) 삭제할까요?
-        </p>
-        <p className="mt-2 text-sm text-gray-500">
-          삭제하면 메모와 기록이 모두 사라지며 복구할 수 없어요.
-        </p>
-        <div className="mt-6 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => setDeleteTarget(null)}
-            disabled={deleting != null}
-            className="cursor-pointer rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={confirmDelete}
-            disabled={deleting != null}
-            className="cursor-pointer rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-          >
-            {deleting ? '삭제 중...' : '삭제'}
-          </button>
-        </div>
-      </Modal>
-
-      <FinishReadingConfirmModal
-        open={finishTarget != null}
-        bookTitle={finishTarget?.title}
-        onClose={() => setFinishTarget(null)}
-        onConfirm={confirmFinish}
-        pending={finishPending}
-      />
-
-      <GinkgoMemoModal book={memoBook} onClose={() => setMemoBook(null)} />
-
-      {deleteSuccess && (
-        <div
-          role="status"
-          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-gray-900 px-4 py-3 text-sm text-white shadow-lg"
+        {/* 가방 안 */}
+        <LocationScene
+          status="가방안"
+          count={inBag.length}
+          limit={inBag.length > 0 ? STATUS_LIMITS.가방안 : undefined}
+          empty={inBag.length === 0 && !isDragActive ? emptySlot('비어있어요') : undefined}
         >
-          삭제가 완료되었습니다.
-        </div>
-      )}
-    </div>
+          <DroppableZone id="가방안" canDrop={canDropOnBag} isDragActive={isDragActive}>
+            <div className="relative z-[1] space-y-3">
+              {inBag.map((book) => (
+                <ReadingCard
+                  key={book.id}
+                  book={book}
+                  variant="bag"
+                  deskCount={onDesk.length}
+                  bagCount={inBag.length}
+                  deleting={deleting === book.id}
+                  onDelete={() => requestDelete(book.id, book.title)}
+                  onMemo={() => setMemoBook(book)}
+                  onRequestFinish={() => requestFinish(book.id, book.title)}
+                />
+              ))}
+              {inBag.length === 0 && isDragActive && canDropOnBag && (
+                <div className="flex items-center justify-center py-6">
+                  <p className="text-sm text-amber-900/35">여기에 놓으세요</p>
+                </div>
+              )}
+            </div>
+          </DroppableZone>
+        </LocationScene>
+
+        {/* 책장 속 — 읽기 전 / 완독 */}
+        <LocationScene
+          status="책장속"
+          count={shelfTotal > 0 ? shelfTotal : undefined}
+          detail={shelfDetail}
+          empty={shelfTotal === 0 && !isDragActive ? emptySlot('비어있어요') : undefined}
+        >
+          <DroppableZone id="책장속" canDrop={canDropOnShelf} isDragActive={isDragActive}>
+            <div className="relative z-[1]">
+              <ShelfZone label="읽기 전" count={unread.length}>
+                {unreadRows.map((row, i) => (
+                  <ShelfBoard
+                    key={`unread-${i}`}
+                    books={row}
+                    deleting={deleting}
+                    onDelete={requestDelete}
+                    onRequestFinish={requestFinish}
+                    deskCount={onDesk.length}
+                    bagCount={inBag.length}
+                  />
+                ))}
+              </ShelfZone>
+              <ShelfZone label="완독" count={finished.length}>
+                {finishedRows.map((row, i) => (
+                  <ShelfBoard
+                    key={`finished-${i}`}
+                    books={row}
+                    finished
+                    deleting={deleting}
+                    onDelete={requestDelete}
+                    onRequestFinish={requestFinish}
+                    deskCount={onDesk.length}
+                    bagCount={inBag.length}
+                  />
+                ))}
+              </ShelfZone>
+              {shelfTotal === 0 && isDragActive && canDropOnShelf && (
+                <div className="flex items-center justify-center py-6">
+                  <p className="text-sm text-amber-900/35">여기에 놓으세요</p>
+                </div>
+              )}
+            </div>
+          </DroppableZone>
+        </LocationScene>
+
+        {/* 온보딩 가이드 */}
+        <Modal open={showGuide} onClose={() => dismissGuide()} title="">
+          <div className="flex flex-col items-center gap-5 px-2 pb-2 pt-1 text-center">
+            <EmptyDeskGuideIllustration />
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-gray-800">
+                Ginkgo에 오신 걸 환영해요
+              </p>
+              <p className="text-sm leading-relaxed text-gray-500">
+                읽는 책을 책상·가방·책장에 두고<br />
+                메모와 독후감까지 남기는 독서 기록 앱이에요.
+              </p>
+              <p className="text-xs leading-relaxed text-gray-400">
+                오른쪽 위 <span className="font-medium text-gray-600">+</span> 버튼으로 책을 추가한 뒤,<br />
+                책상 위에 올리면 읽기가 시작돼요.
+              </p>
+            </div>
+            <div className="flex w-full flex-col gap-2">
+              <button
+                onClick={() => dismissGuide(true)}
+                className="w-full rounded-xl bg-gray-900 py-3 text-sm font-medium text-white hover:bg-gray-700 transition-colors"
+              >
+                + 첫 책 추가하기
+              </button>
+              <button
+                onClick={() => dismissGuide()}
+                className="w-full rounded-xl border border-gray-200 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-gray-400">
+              <input
+                type="checkbox"
+                checked={guideDontShow}
+                onChange={(e) => setGuideDontShow(e.target.checked)}
+                className="h-3.5 w-3.5 accent-gray-700"
+              />
+              다시 보지 않기
+            </label>
+          </div>
+        </Modal>
+
+        <Modal open={adding} onClose={() => setAdding(false)} title="새 책 추가">
+          <BookForm onDone={() => setAdding(false)} />
+        </Modal>
+
+        <Modal
+          open={deleteTarget != null}
+          onClose={() => setDeleteTarget(null)}
+          title="책 삭제"
+        >
+          <p className="text-sm text-gray-600">
+            <span className="font-medium text-gray-900">{deleteTarget?.title}</span>
+            을(를) 삭제할까요?
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            삭제하면 메모와 기록이 모두 사라지며 복구할 수 없어요.
+          </p>
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleting != null}
+              className="cursor-pointer rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={confirmDelete}
+              disabled={deleting != null}
+              className="cursor-pointer rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+            >
+              {deleting ? '삭제 중...' : '삭제'}
+            </button>
+          </div>
+        </Modal>
+
+        <FinishReadingConfirmModal
+          open={finishTarget != null}
+          bookTitle={finishTarget?.title}
+          onClose={() => setFinishTarget(null)}
+          onConfirm={confirmFinish}
+          pending={finishPending}
+        />
+
+        <GinkgoMemoModal book={memoBook} onClose={() => setMemoBook(null)} />
+
+        {deleteSuccess && (
+          <div
+            role="status"
+            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-gray-900 px-4 py-3 text-sm text-white shadow-lg"
+          >
+            삭제가 완료되었습니다.
+          </div>
+        )}
+
+        {dragError && (
+          <div
+            role="alert"
+            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-red-600 px-4 py-3 text-sm text-white shadow-lg"
+          >
+            {dragError}
+          </div>
+        )}
+      </div>
+
+      <DragOverlay dropAnimation={null}>
+        {activeBook ? <DragOverlayCard book={activeBook} /> : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
