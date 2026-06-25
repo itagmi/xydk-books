@@ -15,6 +15,9 @@ import {
   useSensors,
   MouseSensor,
   TouchSensor,
+  pointerWithin,
+  closestCorners,
+  type CollisionDetection,
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
@@ -45,6 +48,28 @@ function calcProgress(maxPage: number | null, totalPages: number | null): number
 }
 
 type SceneVariant = 'desk' | 'bag';
+
+const DROP_ZONE_IDS = new Set<BookStatus>(['책상위', '가방안', '책장속']);
+
+function resolveDropStatus(
+  overId: string | number,
+  books: BookListItem[]
+): BookStatus | null {
+  const id = String(overId);
+  if (DROP_ZONE_IDS.has(id as BookStatus)) return id as BookStatus;
+  const targetBook = books.find((b) => b.id === id);
+  return targetBook?.status ?? null;
+}
+
+const dropZoneCollisionDetection: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args);
+  const zoneHit = pointerCollisions.find((c) =>
+    DROP_ZONE_IDS.has(String(c.id) as BookStatus)
+  );
+  if (zoneHit) return [zoneHit];
+  if (pointerCollisions.length > 0) return pointerCollisions;
+  return closestCorners(args);
+};
 
 interface Props {
   books: BookListItem[];
@@ -116,6 +141,32 @@ function ProgressOverlay({
           </span>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DragOverlaySpine({ book }: { book: BookListItem }) {
+  return (
+    <div
+      className="scene-spine w-11 rotate-2 opacity-95 shadow-2xl"
+      style={{
+        height: '5.5rem',
+        background: book.cover_image
+          ? undefined
+          : `linear-gradient(180deg, hsl(${(book.title.charCodeAt(0) * 7) % 360}, 35%, 42%), hsl(${(book.title.charCodeAt(0) * 7 + 20) % 360}, 40%, 28%))`,
+      }}
+    >
+      {book.cover_image ? (
+        <Image
+          src={book.cover_image}
+          alt={book.title}
+          width={44}
+          height={88}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className="scene-spine-title">{book.title}</span>
+      )}
     </div>
   );
 }
@@ -763,12 +814,16 @@ export function BookHome({ books, error, isAdmin }: Props) {
   };
 
   const handleDragEnd = async ({ active, over }: DragEndEvent) => {
-    const dragged = activeBook;
     setActiveBook(null);
 
-    if (!over || !dragged) return;
+    if (!over) return;
 
-    const toStatus = over.id as BookStatus;
+    const dragged = localBooks.find((b) => b.id === active.id);
+    if (!dragged) return;
+
+    const toStatus = resolveDropStatus(over.id, localBooks);
+    if (!toStatus) return;
+
     const fromStatus = dragged.status;
     if (fromStatus === toStatus) return;
 
@@ -828,7 +883,12 @@ export function BookHome({ books, error, isAdmin }: Props) {
   );
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={dropZoneCollisionDetection}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <div>
         <header className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -890,6 +950,11 @@ export function BookHome({ books, error, isAdmin }: Props) {
                   <p className="scene-empty-text">여기에 놓으세요</p>
                 </div>
               )}
+              {onDesk.length > 0 && isDragActive && canDropOnDesk && activeBook?.status === '책장속' && (
+                <div className="flex items-center justify-center py-2">
+                  <p className="scene-empty-text text-xs">책상 위에 놓으세요</p>
+                </div>
+              )}
             </div>
           </DroppableZone>
         </LocationScene>
@@ -920,6 +985,11 @@ export function BookHome({ books, error, isAdmin }: Props) {
               {inBag.length === 0 && isDragActive && canDropOnBag && (
                 <div className="flex items-center justify-center py-6">
                   <p className="scene-empty-text">여기에 놓으세요</p>
+                </div>
+              )}
+              {inBag.length > 0 && isDragActive && canDropOnBag && activeBook?.status === '책장속' && (
+                <div className="flex items-center justify-center py-2">
+                  <p className="scene-empty-text text-xs">가방 안에 놓으세요</p>
                 </div>
               )}
             </div>
@@ -1097,7 +1167,13 @@ export function BookHome({ books, error, isAdmin }: Props) {
       </div>
 
       <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
-        {activeBook ? <DragOverlayCard book={activeBook} /> : null}
+        {activeBook ? (
+          activeBook.status === '책장속' ? (
+            <DragOverlaySpine book={activeBook} />
+          ) : (
+            <DragOverlayCard book={activeBook} />
+          )
+        ) : null}
       </DragOverlay>
     </DndContext>
   );
