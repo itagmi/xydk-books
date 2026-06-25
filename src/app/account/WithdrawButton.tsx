@@ -39,8 +39,8 @@ export function WithdrawButton() {
       <Modal open={showModal} onClose={() => !pending && setShowModal(false)} title="계정 탈퇴">
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            탈퇴하면 로그인할 수 없게 됩니다.<br />
-            책·메모 데이터는 삭제되지 않고 보존됩니다.
+            탈퇴하면 계정과 모든 책·메모 데이터가 삭제됩니다.<br />
+            이 작업은 되돌릴 수 없습니다.
           </p>
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-2">

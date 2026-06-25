@@ -51,7 +51,7 @@ export default function LoginPage() {
 
     if (profile?.deleted_at) {
       await supabase.auth.signOut();
-      setError('탈퇴한 계정입니다.');
+      setError('탈퇴한 계정입니다. 회원가입에서 다시 가입해주세요.');
       setLoading(false);
       return;
     }

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
-type DoneReason = 'new' | 'existing';
+type DoneReason = 'new' | 'existing' | 'reactivate';
 
 const RESEND_COOLDOWN = 120;
 
@@ -39,6 +39,26 @@ export default function SignupPage() {
   const handleResend = async () => {
     setResending(true);
     setResendMsg('');
+
+    if (done === 'reactivate') {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) {
+        setResendMsg('잠시 후 다시 시도해주세요.');
+      } else {
+        setResendMsg('인증 이메일을 재전송했습니다.');
+        startCountdown();
+      }
+      setResending(false);
+      return;
+    }
+
     const supabase = createClient();
     const { error } = await supabase.auth.resend({ type: 'signup', email });
     if (error) {
@@ -88,8 +108,32 @@ export default function SignupPage() {
     }
 
     const isExisting = data.user?.identities?.length === 0;
-    if (!isExisting) startCountdown();
-    setDone(isExisting ? 'existing' : 'new');
+    if (isExisting) {
+      const res = await fetch('/api/signup/reactivate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, nickname: nickname.trim() }),
+      });
+
+      if (res.ok) {
+        setDone('reactivate');
+        setLoading(false);
+        return;
+      }
+
+      if (res.status === 409) {
+        setDone('existing');
+        setLoading(false);
+        return;
+      }
+
+      setError('재가입에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      setLoading(false);
+      return;
+    }
+
+    startCountdown();
+    setDone('new');
     setLoading(false);
   };
 
@@ -110,7 +154,20 @@ export default function SignupPage() {
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           {done ? (
             <div className="py-4 text-center">
-              {done === 'existing' ? (
+              {done === 'reactivate' ? (
+                <>
+                  <p className="text-sm font-medium text-gray-800">계정이 복구됐어요</p>
+                  <p className="mt-2 text-sm text-gray-400">
+                    방금 설정한 비밀번호로 로그인해주세요.
+                  </p>
+                  <Link
+                    href="/login"
+                    className="mt-5 block w-full rounded-xl bg-gray-900 py-3 text-center text-sm font-medium text-white hover:bg-gray-700 transition-colors"
+                  >
+                    로그인하기
+                  </Link>
+                </>
+              ) : done === 'existing' ? (
                 <>
                   <p className="text-sm font-medium text-gray-800">이미 가입된 이메일이에요</p>
                   <p className="mt-2 text-sm text-gray-400">

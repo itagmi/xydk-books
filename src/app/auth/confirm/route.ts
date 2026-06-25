@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { EmailOtpType } from '@supabase/supabase-js';
+import { clearDeletedProfile } from '@/lib/reactivate';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -29,6 +30,15 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        try {
+          await clearDeletedProfile(user.id, user.email);
+        } catch (err) {
+          console.error('[auth/confirm] clearDeletedProfile error:', err);
+        }
+      }
+
       const response = NextResponse.redirect(`${origin}/welcome`);
       pendingCookies.forEach(({ name, value, options }) => {
         response.cookies.set(name, value, options);

@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { clearDeletedProfile } from '@/lib/reactivate';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -28,6 +29,15 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        try {
+          await clearDeletedProfile(user.id, user.email);
+        } catch (err) {
+          console.error('[auth/callback] clearDeletedProfile error:', err);
+        }
+      }
+
       const redirectTo = next === '/' ? '/welcome' : next;
       const response = NextResponse.redirect(`${origin}${redirectTo}`);
       pendingCookies.forEach(({ name, value, options }) => {
