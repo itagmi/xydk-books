@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Plus, MoreHorizontal, StickyNote, LayoutDashboard } from 'lucide-react';
+import { Plus, MoreHorizontal, StickyNote } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -841,15 +841,6 @@ export function BookHome({ books, error, isAdmin }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-                aria-label="관리자 대시보드"
-              >
-                <LayoutDashboard className="h-4 w-4" />
-              </Link>
-            )}
             <button
               type="button"
               onClick={() => setAdding(true)}
@@ -861,6 +852,7 @@ export function BookHome({ books, error, isAdmin }: Props) {
             <UserMenuDropdown
               nickname={nickname}
               email={userEmail}
+              isAdmin={isAdmin}
               onLogout={handleLogout}
             />
           </div>

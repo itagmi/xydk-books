@@ -3,15 +3,16 @@
 import { useEffect, useLayoutEffect, useRef, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { LogOut, UserRound, ChevronRight } from 'lucide-react';
+import { LogOut, UserRound, ChevronRight, LayoutDashboard } from 'lucide-react';
 
 interface Props {
   nickname: string;
   email: string;
+  isAdmin?: boolean;
   onLogout: () => void;
 }
 
-export function UserMenuDropdown({ nickname, email, onLogout }: Props) {
+export function UserMenuDropdown({ nickname, email, isAdmin, onLogout }: Props) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{ top: number; left: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -86,6 +87,17 @@ export function UserMenuDropdown({ nickname, email, onLogout }: Props) {
         내 정보
         <ChevronRight className="h-4 w-4 text-gray-300" />
       </Link>
+
+      {isAdmin && (
+        <Link
+          href="/admin"
+          onClick={() => setOpen(false)}
+          className="flex w-full items-center gap-2.5 border-t border-gray-100 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          <LayoutDashboard className="h-4 w-4 text-gray-400" />
+          대시보드 가기
+        </Link>
+      )}
 
       {/* 로그아웃 */}
       <div className="border-t border-gray-100">
