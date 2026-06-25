@@ -5,6 +5,7 @@ import { Modal } from '@/components/Modal';
 interface Props {
   open: boolean;
   bookTitle?: string;
+  fromProgress?: boolean;
   onClose: () => void;
   onConfirm: () => void;
   pending?: boolean;
@@ -13,6 +14,7 @@ interface Props {
 export function FinishReadingConfirmModal({
   open,
   bookTitle,
+  fromProgress = false,
   onClose,
   onConfirm,
   pending = false,
@@ -20,7 +22,18 @@ export function FinishReadingConfirmModal({
   return (
     <Modal open={open} onClose={onClose} title="완독 완료">
       <p className="text-sm text-gray-600">
-        {bookTitle ? (
+        {fromProgress ? (
+          bookTitle ? (
+            <>
+              총 페이지까지 읽은 것 같아요.
+              <br />
+              <span className="font-medium text-gray-900">{bookTitle}</span>
+              을(를) 완독 처리할까요?
+            </>
+          ) : (
+            '총 페이지까지 읽은 것 같아요. 완독 처리할까요?'
+          )
+        ) : bookTitle ? (
           <>
             <span className="font-medium text-gray-900">{bookTitle}</span>
             을(를) 완독 처리할까요?

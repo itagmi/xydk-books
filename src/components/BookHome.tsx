@@ -23,6 +23,7 @@ import { UserMenuDropdown } from '@/components/UserMenuDropdown';
 import { deleteBook, updateBookStatus } from '@/lib/actions';
 import { createClient } from '@/lib/supabase/client';
 import { Book, type BookStatus } from '@/lib/types';
+import { BookEditModal } from '@/components/BookEditModal';
 import { BookForm } from '@/components/BookForm';
 import { Modal } from '@/components/Modal';
 import { GinkgoMemoModal } from '@/components/GinkgoMemoModal';
@@ -74,20 +75,47 @@ function ProgressOverlay({
   spine?: boolean;
 }) {
   if (progress === null) return null;
-  const darkHeight = `${100 - progress}%`;
+  const label = `${progress}%`;
+
+  if (spine) {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden${rounded ? ' rounded-lg' : ''}`}
+        aria-hidden
+      >
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-0.5 pb-0.5 pt-2">
+          <div className="h-0.5 overflow-hidden rounded-full bg-white/25">
+            <div
+              className="h-full rounded-full bg-[#E8A800]"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="mt-0.5 block text-center text-[8px] font-bold tabular-nums text-white">
+            {label}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`pointer-events-none absolute inset-0 overflow-hidden${rounded ? ' rounded-lg' : ''}`}
       aria-hidden
     >
-      <div className="absolute top-0 left-0 right-0 bg-black/55" style={{ height: darkHeight }} />
-      {!spine && (
-        <div className="absolute bottom-1.5 inset-x-0 text-center">
-          <span className="text-white text-[11px] font-bold" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>
-            {progress}%
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent px-1.5 pb-1.5 pt-6">
+        <div className="flex items-center gap-1.5">
+          <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-white/25">
+            <div
+              className="h-full rounded-full bg-[#E8A800]"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="shrink-0 text-[10px] font-bold tabular-nums text-white">
+            {label}
           </span>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -153,6 +181,7 @@ function ReadingLocationMenu({
   bagCount,
   onDelete,
   onRequestFinish,
+  onEdit,
   showDetail = false,
   disabled,
   showLocation = true,
@@ -165,6 +194,7 @@ function ReadingLocationMenu({
   bagCount: number;
   onDelete?: () => void;
   onRequestFinish?: () => void;
+  onEdit?: () => void;
   showDetail?: boolean;
   disabled?: boolean;
   showLocation?: boolean;
@@ -325,6 +355,21 @@ function ReadingLocationMenu({
             메모 목록
           </Link>
         )}
+        {onEdit && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpen(false);
+              onEdit();
+            }}
+            disabled={pending || disabled}
+            className={`${itemCls}${hasStatusActions || showDetail ? ' border-t border-gray-100' : ''}`}
+          >
+            책 정보 수정
+          </button>
+        )}
         {onDelete && (
           <button
             type="button"
@@ -374,6 +419,7 @@ function ReadingCard({
   onDelete,
   onMemo,
   onRequestFinish,
+  onEdit,
 }: {
   book: BookListItem;
   deskCount: number;
@@ -383,6 +429,7 @@ function ReadingCard({
   onDelete: () => void;
   onMemo: () => void;
   onRequestFinish: () => void;
+  onEdit: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: book.id,
@@ -405,6 +452,7 @@ function ReadingCard({
         disabled={deleting}
         onDelete={onDelete}
         onRequestFinish={onRequestFinish}
+        onEdit={onEdit}
         showDetail
       />
       <div className="flex items-center gap-4">
@@ -455,6 +503,7 @@ function ShelfSpine({
   book,
   onDelete,
   onRequestFinish,
+  onEdit,
   deleting,
   finished = false,
   deskCount,
@@ -463,6 +512,7 @@ function ShelfSpine({
   book: BookListItem;
   onDelete: () => void;
   onRequestFinish: () => void;
+  onEdit: () => void;
   deleting: boolean;
   finished?: boolean;
   deskCount: number;
@@ -528,6 +578,7 @@ function ShelfSpine({
         disabled={deleting}
         onDelete={onDelete}
         onRequestFinish={onRequestFinish}
+        onEdit={onEdit}
         showLocation={!finished}
         showDetail
         className="absolute -right-1 -top-1 z-10"
@@ -542,6 +593,7 @@ function ShelfBoard({
   books,
   onDelete,
   onRequestFinish,
+  onEdit,
   deleting,
   finished = false,
   deskCount,
@@ -550,6 +602,7 @@ function ShelfBoard({
   books: BookListItem[];
   onDelete: (id: string, title: string) => void;
   onRequestFinish: (id: string, title: string) => void;
+  onEdit: (book: BookListItem) => void;
   deleting: string | null;
   finished?: boolean;
   deskCount: number;
@@ -567,6 +620,7 @@ function ShelfBoard({
           deleting={deleting === book.id}
           onDelete={() => onDelete(book.id, book.title)}
           onRequestFinish={() => onRequestFinish(book.id, book.title)}
+          onEdit={() => onEdit(book)}
         />
       ))}
     </div>
@@ -607,10 +661,15 @@ export function BookHome({ books, error, isAdmin }: Props) {
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
-  const [finishTarget, setFinishTarget] = useState<{ id: string; title: string } | null>(null);
+  const [finishTarget, setFinishTarget] = useState<{
+    id: string;
+    title: string;
+    fromProgress?: boolean;
+  } | null>(null);
   const [finishPending, setFinishPending] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [memoBook, setMemoBook] = useState<BookListItem | null>(null);
+  const [editBook, setEditBook] = useState<BookListItem | null>(null);
   const [nickname, setNickname] = useState('');
   const [showGuide, setShowGuide] = useState(false);
   const [guideDontShow, setGuideDontShow] = useState(false);
@@ -831,6 +890,7 @@ export function BookHome({ books, error, isAdmin }: Props) {
                   onDelete={() => requestDelete(book.id, book.title)}
                   onMemo={() => setMemoBook(book)}
                   onRequestFinish={() => requestFinish(book.id, book.title)}
+                  onEdit={() => setEditBook(book)}
                 />
               ))}
               {onDesk.length === 0 && isDragActive && canDropOnDesk && (
@@ -862,6 +922,7 @@ export function BookHome({ books, error, isAdmin }: Props) {
                   onDelete={() => requestDelete(book.id, book.title)}
                   onMemo={() => setMemoBook(book)}
                   onRequestFinish={() => requestFinish(book.id, book.title)}
+                  onEdit={() => setEditBook(book)}
                 />
               ))}
               {inBag.length === 0 && isDragActive && canDropOnBag && (
@@ -890,6 +951,7 @@ export function BookHome({ books, error, isAdmin }: Props) {
                     deleting={deleting}
                     onDelete={requestDelete}
                     onRequestFinish={requestFinish}
+                    onEdit={setEditBook}
                     deskCount={onDesk.length}
                     bagCount={inBag.length}
                   />
@@ -904,6 +966,7 @@ export function BookHome({ books, error, isAdmin }: Props) {
                     deleting={deleting}
                     onDelete={requestDelete}
                     onRequestFinish={requestFinish}
+                    onEdit={setEditBook}
                     deskCount={onDesk.length}
                     bagCount={inBag.length}
                   />
@@ -965,6 +1028,14 @@ export function BookHome({ books, error, isAdmin }: Props) {
           <BookForm onDone={() => setAdding(false)} />
         </Modal>
 
+        <BookEditModal
+          book={editBook}
+          onClose={() => {
+            setEditBook(null);
+            router.refresh();
+          }}
+        />
+
         <Modal
           open={deleteTarget != null}
           onClose={() => setDeleteTarget(null)}
@@ -1000,12 +1071,19 @@ export function BookHome({ books, error, isAdmin }: Props) {
         <FinishReadingConfirmModal
           open={finishTarget != null}
           bookTitle={finishTarget?.title}
+          fromProgress={finishTarget?.fromProgress}
           onClose={() => setFinishTarget(null)}
           onConfirm={confirmFinish}
           pending={finishPending}
         />
 
-        <GinkgoMemoModal book={memoBook} onClose={() => setMemoBook(null)} />
+        <GinkgoMemoModal
+          book={memoBook}
+          onClose={() => setMemoBook(null)}
+          onSuggestFinish={({ id, title }) =>
+            setFinishTarget({ id, title, fromProgress: true })
+          }
+        />
 
         {deleteSuccess && (
           <div

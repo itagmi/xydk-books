@@ -8,6 +8,7 @@ import { BookStatus, Note } from "@/lib/types";
 import { NotesSection } from "./NotesSection";
 import { ReviewSection } from "./ReviewSection";
 import { BookStatusControl } from "./BookStatusControl";
+import { BookInfoEdit } from "./BookInfoEdit";
 import { FinishedReadingToast } from "@/components/FinishedReadingToast";
 import { ArrowLeft, BookOpen } from "lucide-react";
 
@@ -82,6 +83,11 @@ export default async function BookDetailPage({ params, searchParams }: Props) {
 
   const isReading = book.status === "책상위" || book.status === "가방안";
   const isFinished = book.status === "완독완료";
+  const noteList = (notes ?? []) as Note[];
+  const bookMaxPage =
+    noteList.length > 0
+      ? Math.max(...noteList.map((note) => note.page ?? 0))
+      : null;
 
   return (
     <div>
@@ -127,6 +133,17 @@ export default async function BookDetailPage({ params, searchParams }: Props) {
             deskCount={deskCount ?? 0}
             bagCount={bagCount ?? 0}
           />
+          <BookInfoEdit
+            book={{
+              id: book.id,
+              title: book.title,
+              author: book.author,
+              category: book.category,
+              status: book.status as BookStatus,
+              cover_image: book.cover_image,
+              total_pages: book.total_pages,
+            }}
+          />
           {book.rating != null && (
             <p className="mt-1.5 text-sm text-yellow-400">
               {"★".repeat(book.rating)}
@@ -141,7 +158,10 @@ export default async function BookDetailPage({ params, searchParams }: Props) {
           bookId={book.id}
           bookTitle={book.title}
           bookAuthor={book.author}
-          notes={(notes ?? []) as Note[]}
+          bookStatus={book.status as BookStatus}
+          bookTotalPages={book.total_pages}
+          bookMaxPage={bookMaxPage}
+          notes={noteList}
         />
       )}
 

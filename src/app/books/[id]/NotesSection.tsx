@@ -1,20 +1,51 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
-import { Note } from '@/lib/types';
+import { updateBookStatus } from '@/lib/actions';
+import { Note, type BookStatus } from '@/lib/types';
 import { GinkgoMemoModal } from '@/components/GinkgoMemoModal';
+import { FinishReadingConfirmModal } from '@/components/FinishReadingConfirmModal';
+import { markFinishedReadingToast } from '@/components/FinishedReadingToast';
 import { NoteItem } from './NoteItem';
 
 interface Props {
   bookId: string;
   bookTitle: string;
   bookAuthor: string;
+  bookStatus: BookStatus;
+  bookTotalPages?: number | null;
+  bookMaxPage?: number | null;
   notes: Note[];
 }
 
-export function NotesSection({ bookId, bookTitle, bookAuthor, notes }: Props) {
+export function NotesSection({
+  bookId,
+  bookTitle,
+  bookAuthor,
+  bookStatus,
+  bookTotalPages,
+  bookMaxPage,
+  notes,
+}: Props) {
+  const router = useRouter();
   const [adding, setAdding] = useState(false);
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [finishPending, setFinishPending] = useState(false);
+
+  const confirmFinish = async () => {
+    if (finishPending) return;
+    setFinishPending(true);
+    setFinishOpen(false);
+    try {
+      await updateBookStatus(bookId, '완독완료');
+      markFinishedReadingToast();
+      router.push(`/books/${bookId}?review=1`);
+    } finally {
+      setFinishPending(false);
+    }
+  };
 
   return (
     <>
@@ -50,8 +81,29 @@ export function NotesSection({ bookId, bookTitle, bookAuthor, notes }: Props) {
       </div>
 
       <GinkgoMemoModal
-        book={adding ? { id: bookId, title: bookTitle, author: bookAuthor } : null}
+        book={
+          adding
+            ? {
+                id: bookId,
+                title: bookTitle,
+                author: bookAuthor,
+                total_pages: bookTotalPages,
+                max_page: bookMaxPage,
+                status: bookStatus,
+              }
+            : null
+        }
         onClose={() => setAdding(false)}
+        onSuggestFinish={() => setFinishOpen(true)}
+      />
+
+      <FinishReadingConfirmModal
+        open={finishOpen}
+        bookTitle={bookTitle}
+        fromProgress
+        onClose={() => setFinishOpen(false)}
+        onConfirm={confirmFinish}
+        pending={finishPending}
       />
     </>
   );

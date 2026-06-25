@@ -38,6 +38,18 @@ export function canFinishReading(status: BookStatus): boolean {
   return status === '책상위' || status === '가방안';
 }
 
+export function shouldSuggestFinishReading(
+  totalPages: number | null | undefined,
+  notePage: number,
+  previousMaxPage: number | null | undefined,
+  status: BookStatus | undefined
+): boolean {
+  if (!totalPages || totalPages <= 0 || !status) return false;
+  if (!canFinishReading(status)) return false;
+  const effectiveMax = Math.max(notePage, previousMaxPage ?? 0);
+  return effectiveMax >= totalPages;
+}
+
 export function finishReadingErrorMessage(): string {
   return '읽기 전 책은 완독 처리할 수 없어요. 먼저 책상이나 가방으로 옮겨 주세요.';
 }

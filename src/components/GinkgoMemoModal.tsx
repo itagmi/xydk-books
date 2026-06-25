@@ -4,23 +4,28 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { HelpCircle, X } from 'lucide-react';
 import { addNote } from '@/lib/actions';
-import type { NoteKind } from '@/lib/types';
+import { shouldSuggestFinishReading } from '@/lib/book-limits';
+import type { BookStatus, NoteKind } from '@/lib/types';
 
 interface BookInfo {
   id: string;
   title: string;
   author: string;
+  total_pages?: number | null;
+  max_page?: number | null;
+  status?: BookStatus;
 }
 
 interface Props {
   book: BookInfo | null;
   onClose: () => void;
+  onSuggestFinish?: (book: { id: string; title: string }) => void;
 }
 
 const inputCls =
   'rounded-xl border border-amber-200/80 bg-white/80 px-3 py-2 text-base text-amber-950 placeholder:text-amber-700/35 focus:outline-none focus:ring-2 focus:ring-amber-400/50';
 
-export function GinkgoMemoModal({ book, onClose }: Props) {
+export function GinkgoMemoModal({ book, onClose, onSuggestFinish }: Props) {
   const router = useRouter();
   const [page, setPage] = useState('');
   const [noteKind, setNoteKind] = useState<NoteKind>('기록');
@@ -73,12 +78,24 @@ export function GinkgoMemoModal({ book, onClose }: Props) {
     if (!canSubmit || pending) return;
     setPending(true);
     try {
-      await addNote(book.id, Number(page) || 0, quote.trim(), reflection.trim(), noteKind);
+      const pageNum = Number(page) || 0;
+      await addNote(book.id, pageNum, quote.trim(), reflection.trim(), noteKind);
+      const suggestFinish =
+        onSuggestFinish &&
+        shouldSuggestFinishReading(
+          book.total_pages,
+          pageNum,
+          book.max_page,
+          book.status
+        );
       setPage('');
       setQuote('');
       setReflection('');
       router.refresh();
       onClose();
+      if (suggestFinish) {
+        onSuggestFinish({ id: book.id, title: book.title });
+      }
     } finally {
       setPending(false);
     }
@@ -135,14 +152,22 @@ export function GinkgoMemoModal({ book, onClose }: Props) {
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="flex items-center gap-2">
-              <input
-                type="number"
-                placeholder="페이지"
-                value={page}
-                onChange={(e) => setPage(e.target.value)}
-                className={`w-20 ${inputCls}`}
-                min={1}
-              />
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  placeholder="페이지"
+                  value={page}
+                  onChange={(e) => setPage(e.target.value)}
+                  className={`w-20 ${inputCls}`}
+                  min={1}
+                  max={book.total_pages ?? undefined}
+                />
+                {book.total_pages != null && (
+                  <span className="text-sm tabular-nums text-amber-800/55">
+                    / {book.total_pages}
+                  </span>
+                )}
+              </div>
               <div className="flex rounded-xl border border-amber-200/80 bg-white/80 p-0.5 text-xs font-medium">
                 {(['기록', '독후감'] as NoteKind[]).map((kind) => (
                   <button
