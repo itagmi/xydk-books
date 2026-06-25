@@ -86,7 +86,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="이메일"
               required
-              autoComplete="email"
+              autoComplete="off"
               className={inputCls}
             />
             <div className="relative">
@@ -96,7 +96,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="비밀번호"
                 required
-                autoComplete="current-password"
+                autoComplete="off"
                 className={`${inputCls} pr-11`}
               />
               <button
