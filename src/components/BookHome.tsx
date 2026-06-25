@@ -43,7 +43,8 @@ type BookListItem = Pick<
 > & { max_page: number | null };
 
 function calcProgress(maxPage: number | null, totalPages: number | null): number | null {
-  if (!totalPages || maxPage == null) return null;
+  if (!totalPages || totalPages <= 0) return null;
+  if (maxPage == null || maxPage <= 0) return 0;
   return Math.min(100, Math.round((maxPage / totalPages) * 100));
 }
 
