@@ -2,6 +2,44 @@
 
 button { cursor: pointer; }
 
+/* ── Splash screen ── */
+#ginkgo-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  pointer-events: none;
+  animation: ginkgo-splash-out 0.45s ease-out 1s forwards;
+}
+
+#ginkgo-splash img {
+  width: 72px;
+  height: auto;
+  animation: ginkgo-splash-in 0.5s ease-out both;
+}
+
+#ginkgo-splash span {
+  font-size: 1rem;
+  font-weight: 300;
+  letter-spacing: 0.55em;
+  color: #374151;
+  animation: ginkgo-splash-in 0.5s ease-out 0.1s both;
+}
+
+@keyframes ginkgo-splash-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ginkgo-splash-out {
+  to { opacity: 0; visibility: hidden; }
+}
+
 :root {
   --font-geist: 'Geist', sans-serif;
 }
