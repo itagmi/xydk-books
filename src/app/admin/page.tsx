@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PageSizeSelect } from './PageSizeSelect';
+import { DailySignupsModal } from './DailySignupsModal';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'itagmi88@gmail.com';
 const PAGE_SIZES = [5, 10, 15, 20] as const;
@@ -29,10 +30,21 @@ function formatDate(iso: string | null | undefined) {
   return isoToDate(iso);
 }
 
+type ProfileRow = { id: string; email: string | null; deleted_at: string | null };
+
+function adminHref(params: { page?: number; size?: number; date?: string | null }) {
+  const q = new URLSearchParams();
+  if (params.page && params.page > 1) q.set('page', String(params.page));
+  if (params.size && params.size !== DEFAULT_PAGE_SIZE) q.set('size', String(params.size));
+  if (params.date) q.set('date', params.date);
+  const s = q.toString();
+  return s ? `?${s}` : '/admin';
+}
+
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; size?: string }>;
+  searchParams: Promise<{ page?: string; size?: string; date?: string }>;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -46,7 +58,6 @@ export default async function AdminPage({
   const users = usersData?.users ?? [];
 
   // profiles 맵: id → { email, deleted_at }
-  type ProfileRow = { id: string; email: string | null; deleted_at: string | null };
   const profileMap = new Map<string, ProfileRow>(
     (profiles ?? []).map((p: ProfileRow) => [p.id, p]),
   );
@@ -81,7 +92,7 @@ export default async function AdminPage({
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
 
-  const { page: pageParam, size: sizeParam } = await searchParams;
+  const { page: pageParam, size: sizeParam, date: dateParam } = await searchParams;
   const pageSize = PAGE_SIZES.includes(Number(sizeParam) as typeof PAGE_SIZES[number])
     ? Number(sizeParam)
     : DEFAULT_PAGE_SIZE;
@@ -89,6 +100,26 @@ export default async function AdminPage({
   const totalPages = Math.ceil(sorted.length / pageSize);
   const clampedPage = Math.min(page, Math.max(1, totalPages));
   const pageUsers = sorted.slice((clampedPage - 1) * pageSize, clampedPage * pageSize);
+
+  const selectedDate = dateParam && dateParam in dailyMap ? dateParam : null;
+  const dateUsers = selectedDate
+    ? users
+        .filter((u) => u.created_at && isoToDate(u.created_at) === selectedDate)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .map((u) => {
+          const gen = u.user_metadata?.review_gen as { month?: string; count?: number } | undefined;
+          const profile = profileMap.get(u.id);
+          return {
+            id: u.id,
+            email: u.email ?? null,
+            nickname: (u.user_metadata?.nickname as string | undefined) ?? null,
+            createdAt: u.created_at ?? null,
+            lastSignInAt: u.last_sign_in_at ?? null,
+            reviewCount: gen?.month === month ? (gen.count ?? 0) : 0,
+            isDeleted: !!profile?.deleted_at,
+          };
+        })
+    : [];
 
   return (
     <div className="space-y-8">
@@ -123,16 +154,52 @@ export default async function AdminPage({
               </tr>
             </thead>
             <tbody>
-              {Object.entries(dailyMap).map(([date, count]) => (
-                <tr key={date} className="border-b border-gray-50 last:border-0">
-                  <td className="px-4 py-3 text-gray-700">{date}</td>
-                  <td className="px-4 py-3 text-right font-mono text-gray-900">{count}</td>
-                </tr>
-              ))}
+              {Object.entries(dailyMap).map(([date, count]) => {
+                const isSelected = selectedDate === date;
+                return (
+                  <tr
+                    key={date}
+                    className={`border-b border-gray-50 last:border-0 ${isSelected ? 'bg-amber-50' : ''}`}
+                  >
+                    <td className="px-4 py-3">
+                      <Link
+                        href={adminHref({ date, size: pageSize })}
+                        className={`block text-left transition-colors ${
+                          count > 0
+                            ? 'text-gray-900 hover:text-amber-700'
+                            : 'text-gray-400 hover:text-gray-600'
+                        } ${isSelected ? 'font-medium' : ''}`}
+                      >
+                        {date}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={adminHref({ date, size: pageSize })}
+                        className={`inline-block min-w-8 font-mono transition-colors ${
+                          count > 0
+                            ? 'text-gray-900 hover:text-amber-700'
+                            : 'text-gray-300 hover:text-gray-500'
+                        } ${isSelected ? 'font-semibold' : ''}`}
+                      >
+                        {count}
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </section>
+
+      {selectedDate && (
+        <DailySignupsModal
+          date={selectedDate}
+          users={dateUsers}
+          closeHref={adminHref({ size: pageSize, page: clampedPage })}
+        />
+      )}
 
       {/* 전체 가입자 목록 */}
       <section>
@@ -145,55 +212,82 @@ export default async function AdminPage({
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-          <table className="w-full min-w-[500px] text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 text-left">
-                <th className="px-4 py-3 font-medium text-gray-500">이메일</th>
-                <th className="px-4 py-3 font-medium text-gray-500">가입일</th>
-                <th className="px-4 py-3 font-medium text-gray-500">마지막 로그인</th>
-                <th className="px-4 py-3 font-medium text-gray-500 text-right">AI 독후감</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageUsers.map(u => {
-                const gen = u.user_metadata?.review_gen as { month?: string; count?: number } | undefined;
-                const reviewCount = gen?.month === month ? (gen.count ?? 0) : 0;
-                const profile = profileMap.get(u.id);
-                const isDeleted = !!profile?.deleted_at;
-                return (
-                  <tr key={u.id} className={`border-b border-gray-50 last:border-0 ${isDeleted ? 'opacity-50' : ''}`}>
-                    <td className="px-4 py-3 text-gray-700">
-                      <span>{u.email ?? '—'}</span>
-                      {isDeleted && (
-                        <span className="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-400">
-                          탈퇴
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-gray-500">{formatDate(u.created_at)}</td>
-                    <td className="px-4 py-3 text-gray-500">{formatDate(u.last_sign_in_at)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-gray-900">
-                      {reviewCount > 0 ? reviewCount : <span className="text-gray-300">—</span>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <UserTable users={pageUsers} profileMap={profileMap} month={month} />
         </div>
 
         {/* 페이지네이션 */}
         {totalPages > 1 && (
           <div className="mt-4 flex items-center justify-center gap-1">
-            <PaginationLink page={clampedPage - 1} size={pageSize} disabled={clampedPage <= 1} label="‹ 이전" />
+            <PaginationLink page={clampedPage - 1} size={pageSize} date={selectedDate} disabled={clampedPage <= 1} label="‹ 이전" />
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <PaginationLink key={p} page={p} size={pageSize} active={p === clampedPage} label={String(p)} />
+              <PaginationLink key={p} page={p} size={pageSize} date={selectedDate} active={p === clampedPage} label={String(p)} />
             ))}
-            <PaginationLink page={clampedPage + 1} size={pageSize} disabled={clampedPage >= totalPages} label="다음 ›" />
+            <PaginationLink page={clampedPage + 1} size={pageSize} date={selectedDate} disabled={clampedPage >= totalPages} label="다음 ›" />
           </div>
         )}
       </section>
     </div>
+  );
+}
+
+function UserTable({
+  users,
+  profileMap,
+  month,
+  emptyMessage,
+}: {
+  users: { id: string; email?: string; created_at?: string; last_sign_in_at?: string | null; user_metadata?: Record<string, unknown> }[];
+  profileMap: Map<string, ProfileRow>;
+  month: string;
+  emptyMessage?: string;
+}) {
+  if (users.length === 0 && emptyMessage) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-400">
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  return (
+    <table className="w-full min-w-[500px] text-sm">
+      <thead>
+        <tr className="border-b border-gray-100 bg-gray-50 text-left">
+          <th className="px-4 py-3 font-medium text-gray-500">이메일</th>
+          <th className="px-4 py-3 font-medium text-gray-500">닉네임</th>
+          <th className="px-4 py-3 font-medium text-gray-500">가입일</th>
+          <th className="px-4 py-3 font-medium text-gray-500">마지막 로그인</th>
+          <th className="px-4 py-3 font-medium text-gray-500 text-right">AI 독후감</th>
+        </tr>
+      </thead>
+      <tbody>
+        {users.map((u) => {
+          const gen = u.user_metadata?.review_gen as { month?: string; count?: number } | undefined;
+          const reviewCount = gen?.month === month ? (gen.count ?? 0) : 0;
+          const profile = profileMap.get(u.id);
+          const isDeleted = !!profile?.deleted_at;
+          const nickname = u.user_metadata?.nickname as string | undefined;
+          return (
+            <tr key={u.id} className={`border-b border-gray-50 last:border-0 ${isDeleted ? 'opacity-50' : ''}`}>
+              <td className="px-4 py-3 text-gray-700">
+                <span>{u.email ?? '—'}</span>
+                {isDeleted && (
+                  <span className="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-400">
+                    탈퇴
+                  </span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-gray-500">{nickname ?? '—'}</td>
+              <td className="px-4 py-3 text-gray-500">{formatDate(u.created_at)}</td>
+              <td className="px-4 py-3 text-gray-500">{formatDate(u.last_sign_in_at)}</td>
+              <td className="px-4 py-3 text-right font-mono text-gray-900">
+                {reviewCount > 0 ? reviewCount : <span className="text-gray-300">—</span>}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
@@ -210,12 +304,14 @@ function StatCard({ label, value, sub }: { label: string; value: number; sub?: s
 function PaginationLink({
   page,
   size,
+  date,
   label,
   active,
   disabled,
 }: {
   page: number;
   size: number;
+  date?: string | null;
   label: string;
   active?: boolean;
   disabled?: boolean;
@@ -226,7 +322,7 @@ function PaginationLink({
   }
   return (
     <Link
-      href={`?page=${page}&size=${size}`}
+      href={adminHref({ page, size, date })}
       className={`${base} ${active ? 'bg-gray-900 font-medium text-white' : 'text-gray-600 hover:bg-gray-100'}`}
     >
       {label}

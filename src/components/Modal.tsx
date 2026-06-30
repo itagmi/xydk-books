@@ -8,9 +8,10 @@ interface Props {
   onClose: () => void;
   title: React.ReactNode;
   children: React.ReactNode;
+  panelClassName?: string;
 }
 
-export function Modal({ open, onClose, title, children }: Props) {
+export function Modal({ open, onClose, title, children, panelClassName = 'max-w-lg' }: Props) {
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -38,7 +39,7 @@ export function Modal({ open, onClose, title, children }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="relative z-10 flex w-full max-w-lg max-h-[90vh] flex-col overflow-hidden rounded-2xl bg-white p-5 shadow-xl"
+        className={`relative z-10 flex w-full ${panelClassName} max-h-[90vh] flex-col overflow-hidden rounded-2xl bg-white p-5 shadow-xl`}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div id="modal-title" role="heading" aria-level={2} className="min-w-0 flex-1 font-semibold text-gray-900">
